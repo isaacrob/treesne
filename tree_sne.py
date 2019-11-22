@@ -2,6 +2,7 @@ from fast_tsne import fast_tsne # this is defined in PYTHONPATH
 from sklearn.cluster import DBSCAN, OPTICS
 from sklearn.mixture import BayesianGaussianMixture
 from sklearn import datasets
+from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.distance import pdist
@@ -18,7 +19,7 @@ class TreeSNE():
     # returns matrix with points and different 1D embedding
     # locations
     # later, return matrix containing cluster level assignments
-    def __init__(self, init_df = 1, df_ratio = .9, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = 30):
+    def __init__(self, init_df = 1, df_ratio = .9, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = 30, late_exag_coeff = 4, dynamic_perp = True):
         self.init_df = init_df
         self.df_ratio = df_ratio
         self.rand_state = rand_state
@@ -26,20 +27,33 @@ class TreeSNE():
         self.ignore_later_exag = ignore_later_exag
         self.map_dims = map_dims
         self.perp = perp
+        self.late_exag_coeff = late_exag_coeff
+
+        self.dynamic_perp = dynamic_perp
+        if dynamic_perp:
+            self.curr_perp = self.perp
 
         self.curr_df = self.init_df
 
     def _grow_tree_once(self, X, init_embed):
         self.curr_df *= self.df_ratio
+        if self.dynamic_perp:
+            self.curr_perp = self.curr_perp ** self.df_ratio
+
         new_embed = fast_tsne(
             X,
             map_dims = self.map_dims,
-            perplexity = self.perp,
+            perplexity = self.perp if not self.dynamic_perp else self.curr_perp,
             df = self.curr_df, 
             initialization = init_embed, 
             seed = self.rand_state, # I don't think this is necessary ..
-            load_affinities = "load",
-            stop_early_exag_iter = 0 if self.ignore_later_exag else 250, # 250 is default value in library
+            # load_affinities = "load",
+            stop_early_exag_iter = 0 if self.ignore_later_exag else 250, # 250 is default value in library,
+            start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
+            late_exag_coeff = self.late_exag_coeff,
+            learning_rate = X.shape[0] / 10,
+            knn_algo = 'vp-tree',
+            search_k = 1,
         )
         # print(np.unique(DBSCAN().fit_predict(new_embed)).shape)
 
@@ -54,7 +68,12 @@ class TreeSNE():
             perplexity = self.perp,
             df = self.init_df,
             seed = self.rand_state,
-            load_affinities = "save"
+            load_affinities = "save",
+            start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
+            late_exag_coeff = self.late_exag_coeff,
+            learning_rate = X.shape[0] / 10,
+            knn_algo = 'vp-tree',
+            search_k = 1,
         )
 
         embeddings = [new_embed]
@@ -86,6 +105,11 @@ class TreeSNE():
                 perplexity = self.perp,
                 df = df,
                 seed = self.rand_state,
+                start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
+                late_exag_coeff = self.late_exag_coeff,
+                learning_rate = X.shape[0] / 10,
+                knn_algo = 'vp-tree',
+                search_k = 1,
             )
             inner_inds = np.argsort(embedding, axis = 0)
             cluster = self._pop_off_via_distance_t_score(embedding[inner_inds])
@@ -317,15 +341,17 @@ class TreeSNE():
 
 if __name__ == "__main__":
     data = datasets.load_digits()
+    X = data.data
     # data = datasets.fetch_lfw_people()
+    # X = PCA(40).fit_transform(data.data)
     # A, gt, coords = sbm(1000, 2, 0, .5, .1)
     # plt.figure()
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    tree = TreeSNE(init_df = 1, df_ratio = .75, perp = 30, map_dims = 1)
+    tree = TreeSNE(init_df = 1, df_ratio = .8, perp = 30, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True)
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings = tree.fit(data.data, n_layers = 5)
+    embeddings = tree.fit(X, n_layers = 15)
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
     # print(np.sort(embeddings[:, 1], axis = 0)[:10])
