@@ -19,7 +19,7 @@ class TreeSNE():
     # returns matrix with points and different 1D embedding
     # locations
     # later, return matrix containing cluster level assignments
-    def __init__(self, init_df = 1, df_ratio = .9, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = 30, late_exag_coeff = 4, dynamic_perp = True):
+    def __init__(self, init_df = 1, df_ratio = .9, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = 30, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True):
         self.init_df = init_df
         self.df_ratio = df_ratio
         self.rand_state = rand_state
@@ -33,10 +33,12 @@ class TreeSNE():
         if dynamic_perp:
             self.curr_perp = self.perp
 
+        self.init_with_pca = init_with_pca
+
         self.curr_df = self.init_df
 
     def _grow_tree_once(self, X, init_embed):
-        self.curr_df *= self.df_ratio
+        # self.curr_df *= self.df_ratio
         if self.dynamic_perp:
             self.curr_perp = self.curr_perp ** self.df_ratio
 
@@ -62,11 +64,15 @@ class TreeSNE():
         return new_embed
 
     def _grow_tree(self, X, n_layers = 64):
+        if self.init_with_pca:
+            init_embed = PCA(self.map_dims).fit_transform(X)
+
         new_embed = fast_tsne(
             X,
             map_dims = self.map_dims, 
             perplexity = self.perp,
             df = self.init_df,
+            initialization = None if not self.init_with_pca else init_embed,
             seed = self.rand_state,
             load_affinities = "save",
             start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
@@ -349,9 +355,9 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    tree = TreeSNE(init_df = 1, df_ratio = .8, perp = 30, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True)
+    tree = TreeSNE(init_df = 1, df_ratio = .7, perp = 30, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False)
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings = tree.fit(X, n_layers = 15)
+    embeddings = tree.fit(X, n_layers = 20)
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
     # print(np.sort(embeddings[:, 1], axis = 0)[:10])
