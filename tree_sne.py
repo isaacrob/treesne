@@ -19,7 +19,7 @@ class TreeSNE():
     # returns matrix with points and different 1D embedding
     # locations
     # later, return matrix containing cluster level assignments
-    def __init__(self, init_df = 1, df_ratio = .9, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = 30, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True):
+    def __init__(self, init_df = 1, df_ratio = .9, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = None, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True, max_iter = 5000):
         self.init_df = init_df
         self.df_ratio = df_ratio
         self.rand_state = rand_state
@@ -28,6 +28,7 @@ class TreeSNE():
         self.map_dims = map_dims
         self.perp = perp
         self.late_exag_coeff = late_exag_coeff
+        self.max_iter = max_iter
 
         self.dynamic_perp = dynamic_perp
         if dynamic_perp:
@@ -38,9 +39,10 @@ class TreeSNE():
         self.curr_df = self.init_df
 
     def _grow_tree_once(self, X, init_embed):
-        # self.curr_df *= self.df_ratio
+        self.curr_df *= self.df_ratio
         if self.dynamic_perp:
             self.curr_perp = self.curr_perp ** self.df_ratio
+            # self.curr_perp = 1 + self.curr_perp * self.df_ratio
 
         new_embed = fast_tsne(
             X,
@@ -56,14 +58,20 @@ class TreeSNE():
             learning_rate = X.shape[0] / 10,
             knn_algo = 'vp-tree',
             search_k = 1,
+            max_iter = self.max_iter
         )
         # print(np.unique(DBSCAN().fit_predict(new_embed)).shape)
+        # self._get_tsne_clusters_via_shrinkage(X, new_embed)
 
         # print("number of points changed: %d"%(sum(1-np.isclose(np.sort(new_embed, axis = 0), np.sort(init_embed, axis = 0)))))
 
         return new_embed
 
     def _grow_tree(self, X, n_layers = 64):
+        if self.perp is None:
+            self.perp = X.shape[0] ** .5
+            self.curr_perp = self.perp
+
         if self.init_with_pca:
             init_embed = PCA(self.map_dims).fit_transform(X)
 
@@ -80,6 +88,7 @@ class TreeSNE():
             learning_rate = X.shape[0] / 10,
             knn_algo = 'vp-tree',
             search_k = 1,
+            max_iter = self.max_iter
         )
 
         embeddings = [new_embed]
@@ -92,10 +101,57 @@ class TreeSNE():
         #     # print(np.unique(OPTICS(max_eps = self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
         # #     print(np.unique(BayesianGaussianMixture(50).fit_predict(new_embed)).shape)
         #     self._get_pop_off_clusters(new_embed)
+            # self._get_tsne_clusters_via_shrinkage(X, new_embed)
 
         embeddings = np.array(embeddings).reshape(X.shape[0], len(embeddings), -1)
 
         return embeddings
+
+    def _get_tsne_clusters_via_shrinkage(self, X, init_embed, max_iter = 50):
+        # get pairwise distances between points that are next to each other
+        # run tSNE for a few more steps with slightly smaller alpha
+        # while keeping perplexity constant so not selecting for breaking clusters apart
+        # get pairwise sequential distances again
+        # look for biggest increase in distances, split dataset on that
+        # look for biggest increase on either side, split dataset 
+        # recurse
+        # eventually won't split any more because all points will get closer together
+        # if they're in the same cluster 
+        # THAT IS THE THEORY
+        init_embed = init_embed.reshape(-1)
+        sorted_init_embed = np.sort(init_embed)
+        sorted_init_embed /= sorted_init_embed[-1] - sorted_init_embed[0]
+        print(sorted_init_embed[:10])
+        print(sorted_init_embed.shape)
+        init_seq_dists = sorted_init_embed[1:] - sorted_init_embed[:-1]
+        # init_seq_dists /= init
+        new_embed = fast_tsne(
+            X,
+            map_dims = self.map_dims,
+            perplexity = self.perp,#self.perp if not self.dynamic_perp else self.curr_perp,
+            df = self.curr_df * .01, 
+            initialization = init_embed, 
+            seed = self.rand_state, # I don't think this is necessary ..
+            # load_affinities = "load",
+            stop_early_exag_iter = 0 if self.ignore_later_exag else 250, # 250 is default value in library,
+            start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
+            late_exag_coeff = self.late_exag_coeff,
+            learning_rate = X.shape[0] / 10,
+            knn_algo = 'vp-tree',
+            search_k = 1,
+            max_iter = max_iter,
+        )
+        new_embed = new_embed.reshape(-1)
+        sorted_new_embed = np.sort(new_embed)
+        sorted_new_embed /= sorted_new_embed[-1] - sorted_new_embed[0]
+        new_seq_dists = sorted_new_embed[1:] - sorted_new_embed[:-1]
+        diffs = new_seq_dists - init_seq_dists
+        print(np.sort(diffs)[-50:])
+        print(np.sort(diffs)[:50])
+        print(diffs)
+        print(np.argmax(diffs))
+        n_clusters = np.sum(diffs > 0) + 1
+        print(n_clusters)
 
     def _get_tsne_clusters_via_pop_off(self, X, df):
         # keep popping off left most cluster until no points left to embed
@@ -310,21 +366,37 @@ class TreeSNE():
         # just wraps self._grow_tree
         return self._grow_tree(*args, **kwargs)
 
-    def display_tree(self, embeddings, true_labels = None):
-        assert embeddings.shape[-1] == 1, "only 1D embedding supported right now"
-        # embeddings = embeddings.squeeze()
-        # x, y = zip(*([item, i] for i, sublist in enumerate(embeddings.T) for item in sublist))
-        x = embeddings.reshape(embeddings.shape[0] * embeddings.shape[1])
-        # y = np.arange(x.shape[0]) % embeddings.shape[1]
-        y = np.repeat(np.arange(embeddings.shape[1]), embeddings.shape[0])
+    # def display_tree(self, embeddings, true_labels = None):
+    #     assert embeddings.shape[-1] == 1, "only 1D embedding supported right now"
+    #     embeddings = embeddings[true_labels == 4]
+    #     # embeddings = embeddings.squeeze()
+    #     # x, y = zip(*([item, i] for i, sublist in enumerate(embeddings.T) for item in sublist))
+    #     x = embeddings.reshape(embeddings.shape[0] * embeddings.shape[1])
+    #     # y = np.arange(x.shape[0]) % embeddings.shape[1]
+    #     y = np.repeat(np.arange(embeddings.shape[1]), embeddings.shape[0])
 
-        # print("this isn't finished yet")
+    #     plt.figure()
+    #     plt.hist(embeddings[-1])
+    #     plt.show()
+
+    #     # print("this isn't finished yet")
+    #     plt.figure()
+    #     if true_labels is None:
+    #         plt.scatter(x, y)
+    #     else:
+    #         large_labels = np.tile(true_labels, embeddings.shape[1])
+    #         plt.scatter(x, y, alpha = .01)#, c = large_labels)
+    #     # plt.colorbar()
+    #     plt.show()
+    def display_tree(self, embeddings, true_labels = None):
         plt.figure()
-        if true_labels is None:
-            plt.scatter(x, y)
-        else:
-            large_labels = np.tile(true_labels, embeddings.shape[1])
-            plt.scatter(x, y, c = large_labels)
+        embeddings = embeddings.reshape(embeddings.shape[1], -1)
+        # print(embeddings.shape)
+        for i, embedding in enumerate(embeddings):
+            # embedding = embedding[true_labels == 0]
+            # print(embedding.shape)
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = true_labels)
+        plt.colorbar()
         plt.show()
 
 #TODO: increase repulsion later, late exageration
@@ -346,6 +418,7 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
+    # data = datasets.load_breast_cancer()
     data = datasets.load_digits()
     X = data.data
     # data = datasets.fetch_lfw_people()
@@ -355,9 +428,9 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    tree = TreeSNE(init_df = 1, df_ratio = .7, perp = 30, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False)
+    tree = TreeSNE(init_df = 1, df_ratio = .7, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings = tree.fit(X, n_layers = 20)
+    embeddings = tree.fit(X, n_layers = 15)
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
     # print(np.sort(embeddings[:, 1], axis = 0)[:10])
