@@ -1,5 +1,5 @@
 from fast_tsne import fast_tsne # this is defined in PYTHONPATH
-from sklearn.cluster import DBSCAN, OPTICS
+#from sklearn.cluster import DBSCAN, OPTICS
 from sklearn.mixture import BayesianGaussianMixture
 from sklearn import datasets
 from sklearn.decomposition import PCA
@@ -11,6 +11,8 @@ SEED = 37
 np.random.seed(SEED)
 
 from datasets import sbm
+
+from display_tree import *
 
 
 class TreeSNE():
@@ -437,16 +439,7 @@ class TreeSNE():
     #         plt.scatter(x, y, alpha = .01)#, c = large_labels)
     #     # plt.colorbar()
     #     plt.show()
-    def display_tree(self, embeddings, true_labels = None):
-        plt.figure()
-        embeddings = embeddings.reshape(embeddings.shape[1], -1)
-        # print(embeddings.shape)
-        for i, embedding in enumerate(embeddings):
-            # embedding = embedding[true_labels == 0]
-            # print(embedding.shape)
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = true_labels)
-        # plt.colorbar()
-        plt.show()
+
 
 #TODO: increase repulsion later, late exageration
 # IDEA: pop off edge cluster from embedding, rerun
@@ -468,6 +461,7 @@ class TreeSNE():
 
 if __name__ == "__main__":
     X = np.load("shekhar_data.npy")
+    labels = np.load("shekhar_labels.npy")
     subset = np.random.choice(X.shape[0], 5000, replace = False)
     dim_reduction = PCA(100)
     X = dim_reduction.fit_transform(X)
@@ -495,4 +489,4 @@ if __name__ == "__main__":
     # plt.scatter(embeddings[:, 1], np.zeros(embeddings.shape[0]), c = data.target)
     # plt.show()
     print(embeddings.shape)
-    tree.display_tree(embeddings)#, true_labels = data.target)
+    display_tree_categorical(embeddings, labels)
