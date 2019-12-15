@@ -15,6 +15,7 @@ from datasets import sbm
 
 from display_tree import *
 
+from load_data import *
 
 class TreeSNE():
     # grow a tree by initializing (1D) embedding
@@ -461,36 +462,44 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
-    legends = ['Rod BC',
-         'Muller Glia',
-         'BC1A',
-         'BC1B',
-         'BC2',
-         'BC3A',
-         'BC3B',
-         'BC4',
-         'BC5A',
-         'BC5B',
-         'BC5C',
-         'BC5D',
-         'BC6',
-         'BC7',
-         'BC8/9_1',
-         'BC8/9_2',
-         'Amacrine_1',
-         'Amacrine_2',
-         'Rod PR',
-         'Cone PR'
-    ]
-    X = np.load("shekhar_data.npy")
-    print(X.shape)
-    labels = np.load("shekhar_labels.npy")
+    # legends = ['Rod BC',
+    #      'Muller Glia',
+    #      'BC1A',
+    #      'BC1B',
+    #      'BC2',
+    #      'BC3A',
+    #      'BC3B',
+    #      'BC4',
+    #      'BC5A',
+    #      'BC5B',
+    #      'BC5C',
+    #      'BC5D',
+    #      'BC6',
+    #      'BC7',
+    #      'BC8/9_1',
+    #      'BC8/9_2',
+    #      'Amacrine_1',
+    #      'Amacrine_2',
+    #      'Rod PR',
+    #      'Cone PR'
+    # ]
+    # X = np.load("shekhar_data.npy")
+    # print(X.shape)
+    # labels = np.load("shekhar_labels.npy")
+    # # subset = np.random.choice(X.shape[0], 5000, replace = False)
+    # dim_reduction = PCA(100) # 100 is good 
+    # # dim_reduction = SpectralEmbedding(100)
+    # X = dim_reduction.fit_transform(X)
+    # # print(dim_reduction.explained_variance_ratio_)
+    # print(X.shape)
+    # X = np.load("shekhar_data.npy")
+    # labels = np.load("shekhar_labels.npy")
     # subset = np.random.choice(X.shape[0], 5000, replace = False)
-    dim_reduction = PCA(100) # 100 is good 
-    # dim_reduction = SpectralEmbedding(100)
-    X = dim_reduction.fit_transform(X)
+    # dim_reduction = PCA(100)
+    # X = dim_reduction.fit_transform(X)
     # print(dim_reduction.explained_variance_ratio_)
-    print(X.shape)
+    # print(X.shape)
+    X, channels, labels = load_cytof()
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
