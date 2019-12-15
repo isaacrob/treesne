@@ -14,6 +14,7 @@ from datasets import sbm
 
 from display_tree import *
 
+from load_data import *
 
 class TreeSNE():
     # grow a tree by initializing (1D) embedding
@@ -460,13 +461,14 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
-    X = np.load("shekhar_data.npy")
-    labels = np.load("shekhar_labels.npy")
-    subset = np.random.choice(X.shape[0], 5000, replace = False)
-    dim_reduction = PCA(100)
-    X = dim_reduction.fit_transform(X)
-    print(dim_reduction.explained_variance_ratio_)
-    print(X.shape)
+    # X = np.load("shekhar_data.npy")
+    # labels = np.load("shekhar_labels.npy")
+    # subset = np.random.choice(X.shape[0], 5000, replace = False)
+    # dim_reduction = PCA(100)
+    # X = dim_reduction.fit_transform(X)
+    # print(dim_reduction.explained_variance_ratio_)
+    # print(X.shape)
+    X, channels, labels = load_cytof()
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
