@@ -30,10 +30,13 @@ def display_tree(embeddings, true_labels = None):
             plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05)
     plt.show()
 
-def display_tree_categorical(embeddings, true_labels, legend_labels = None):
+def display_tree_categorical(embeddings, true_labels, legend_labels = None, transparency = None):
     """
     Method to plot tree if labels are categorical rather than continuous
     """
+    if transparency is None:
+        transparency = 500/float(len(true_labels))
+
     x = embeddings.reshape(embeddings.shape[0] * embeddings.shape[1])
     y = np.repeat(np.arange(embeddings.shape[1]), embeddings.shape[0])
     large_labels = np.tile(true_labels, embeddings.shape[1])
@@ -46,7 +49,7 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None):
     for val in legend_labels:        
         em = x[large_labels == val]
         y_val = y[large_labels == val]
-        plt.plot(em, y_val, alpha = .05, marker='o', linestyle='', label = val,
+        plt.plot(em, y_val, alpha = transparency, marker='o', linestyle='', label = val,
                 color = getColor("viridis", num_colors, col_index))
         col_index += 1
     
