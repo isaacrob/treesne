@@ -470,14 +470,19 @@ if __name__ == "__main__":
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
-    # data = datasets.fetch_lfw_people()
-    # X = PCA(40).fit_transform(data.data)
+    # data = datasets.fetch_olivetti_faces()
+    # dim_reduction = PCA(100)
+    # X = dim_reduction.fit_transform(data.data)
+    # print(dim_reduction.explained_variance_ratio_)
+    # labels = data.target
     # A, gt, coords = sbm(1000, 2, 0, .5, .1)
     # plt.figure()
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
     tree = TreeSNE(init_df = 1, df_ratio = .8, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    # use .8 for bio thing
+    # and .7 for MNIST
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
     embeddings = tree.fit(X, n_layers = 25)
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
