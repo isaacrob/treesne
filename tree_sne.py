@@ -3,6 +3,7 @@ from fast_tsne import fast_tsne # this is defined in PYTHONPATH
 from sklearn.mixture import BayesianGaussianMixture
 from sklearn import datasets
 from sklearn.decomposition import PCA
+from sklearn.manifold import SpectralEmbedding
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.distance import pdist
@@ -460,16 +461,40 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
+    legends = ['Rod BC',
+         'Muller Glia',
+         'BC1A',
+         'BC1B',
+         'BC2',
+         'BC3A',
+         'BC3B',
+         'BC4',
+         'BC5A',
+         'BC5B',
+         'BC5C',
+         'BC5D',
+         'BC6',
+         'BC7',
+         'BC8/9_1',
+         'BC8/9_2',
+         'Amacrine_1',
+         'Amacrine_2',
+         'Rod PR',
+         'Cone PR'
+    ]
     X = np.load("shekhar_data.npy")
+    print(X.shape)
     labels = np.load("shekhar_labels.npy")
-    subset = np.random.choice(X.shape[0], 5000, replace = False)
-    dim_reduction = PCA(100)
+    # subset = np.random.choice(X.shape[0], 5000, replace = False)
+    dim_reduction = PCA(100) # 100 is good 
+    # dim_reduction = SpectralEmbedding(100)
     X = dim_reduction.fit_transform(X)
-    print(dim_reduction.explained_variance_ratio_)
+    # print(dim_reduction.explained_variance_ratio_)
     print(X.shape)
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
+    # labels = data.target
     # data = datasets.fetch_olivetti_faces()
     # dim_reduction = PCA(100)
     # X = dim_reduction.fit_transform(data.data)
@@ -485,6 +510,7 @@ if __name__ == "__main__":
     # and .7 for MNIST
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
     embeddings = tree.fit(X, n_layers = 25)
+    np.save("embeddings.npy", embeddings)
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
     # print(np.sort(embeddings[:, 1], axis = 0)[:10])
