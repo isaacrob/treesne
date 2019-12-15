@@ -8,10 +8,13 @@ def display_tree(embeddings, true_labels = None):
     for i, embedding in enumerate(embeddings):
         # embedding = embedding[true_labels == 0]
         # print(embedding.shape)
-        plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = true_labels)
-    color_bar = plt.colorbar()
-    color_bar.set_alpha(1)
-    color_bar.draw_all()
+        if true_labels is not None:
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = true_labels)
+            color_bar = plt.colorbar()
+            color_bar.set_alpha(1)
+            color_bar.draw_all()
+        else:
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05)
     plt.show()
 
 def display_tree_categorical(embeddings, true_labels = None):
