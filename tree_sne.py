@@ -3,6 +3,7 @@ from fast_tsne import fast_tsne # this is defined in PYTHONPATH
 from sklearn.mixture import BayesianGaussianMixture
 from sklearn import datasets
 from sklearn.decomposition import PCA
+from sklearn.manifold import SpectralEmbedding
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.distance import pdist
@@ -461,9 +462,39 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
-    # X = np.load("shekhar_data.npy", allow_pickle=True)
-    labels = np.load("shekhar_labels.npy", allow_pickle = True)
+    # legends = ['Rod BC',
+    #      'Muller Glia',
+    #      'BC1A',
+    #      'BC1B',
+    #      'BC2',
+    #      'BC3A',
+    #      'BC3B',
+    #      'BC4',
+    #      'BC5A',
+    #      'BC5B',
+    #      'BC5C',
+    #      'BC5D',
+    #      'BC6',
+    #      'BC7',
+    #      'BC8/9_1',
+    #      'BC8/9_2',
+    #      'Amacrine_1',
+    #      'Amacrine_2',
+    #      'Rod PR',
+    #      'Cone PR'
+    # ]
+    # X = np.load("shekhar_data.npy")
+    # print(X.shape)
+    # labels = np.load("shekhar_labels.npy")
     # # subset = np.random.choice(X.shape[0], 5000, replace = False)
+    # dim_reduction = PCA(100) # 100 is good 
+    # # dim_reduction = SpectralEmbedding(100)
+    # X = dim_reduction.fit_transform(X)
+    # # print(dim_reduction.explained_variance_ratio_)
+    # print(X.shape)
+    # X = np.load("shekhar_data.npy")
+    # labels = np.load("shekhar_labels.npy")
+    # subset = np.random.choice(X.shape[0], 5000, replace = False)
     # dim_reduction = PCA(100)
     # X = dim_reduction.fit_transform(X)
     # print(dim_reduction.explained_variance_ratio_)
@@ -474,6 +505,9 @@ if __name__ == "__main__":
     # X = data.data
     # data = datasets.fetch_lfw_people()
     # dim_reduction = PCA(40)
+    # labels = data.target
+    # data = datasets.fetch_olivetti_faces()
+    # dim_reduction = PCA(100)
     # X = dim_reduction.fit_transform(data.data)
     # print(dim_reduction.explained_variance_ratio_)
     # labels = data.target
@@ -482,11 +516,13 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    # tree = TreeSNE(init_df = 1, df_ratio = .8, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
-    # # use .8 for bio thing
-    # # and .7 for MNIST
-    # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    # embeddings = tree.fit(X, n_layers = 25)
+    tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    # use .8 for bio thing
+    # and .7 for MNIST
+    # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
+    embeddings = tree.fit(X, n_layers = 15)
+    np.save("cytof_embeddings.npy", embeddings)
+    # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
     # print(np.sort(embeddings[:, 1], axis = 0)[:10])
@@ -499,5 +535,5 @@ if __name__ == "__main__":
     #np.save("shekhar_embed", embeddings)
     embeddings = np.load("shekhar_embed.npy", allow_pickle = True)
     print(embeddings.shape)
-    #display_tree(embeddings)
-    display_tree_categorical(embeddings, labels, distinct=True, transparency=0.01)
+    # print(labels.shape)
+    display_tree(embeddings, X[:, channels.index("cd8")])
