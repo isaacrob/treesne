@@ -14,7 +14,7 @@ def getColor(c, N, idx):
     norm = mpl.colors.Normalize(vmin=0.0, vmax=N - 1)
     return cmap(norm(idx))
 
-def display_tree(embeddings, true_labels = None):
+def display_tree(embeddings, true_labels = None, level_labels = None):
     plt.figure()
     embeddings = embeddings.reshape(embeddings.shape[1], -1)
     # print(embeddings.shape)
@@ -23,6 +23,8 @@ def display_tree(embeddings, true_labels = None):
         # print(embedding.shape)
         if true_labels is not None:
             plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = true_labels)
+        elif level_labels is not None:
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = level_labels[i])
         else:
             plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05)
     if true_labels is not None:

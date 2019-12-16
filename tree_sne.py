@@ -4,11 +4,16 @@ from sklearn.mixture import BayesianGaussianMixture
 from sklearn import datasets
 from sklearn.decomposition import PCA
 from sklearn.manifold import SpectralEmbedding
+from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
+from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.linalg import eigh
 from scipy.spatial.distance import pdist
 from scipy.stats import mode, binned_statistic, ttest_ind
+from scipy.sparse.linalg import eigsh
 SEED = 37
+ZERO_CUTOFF = 1e-10
 np.random.seed(SEED)
 
 from datasets import sbm
@@ -66,12 +71,13 @@ class TreeSNE():
         )
         # print(np.unique(DBSCAN().fit_predict(new_embed)).shape)
         # self._get_tsne_clusters_via_parallel_shrinkage(X, new_embed)
+        # self._get_clusters_via_spectral(new_embed)
 
         # print("number of points changed: %d"%(sum(1-np.isclose(np.sort(new_embed, axis = 0), np.sort(init_embed, axis = 0)))))
 
         return new_embed
 
-    def _grow_tree(self, X, n_layers = 64):
+    def _grow_tree(self, X, n_layers = 64, get_clusters = False):
         if self.perp is None:
             self.perp = X.shape[0] ** .5
             self.curr_perp = self.perp
@@ -100,16 +106,127 @@ class TreeSNE():
             new_embed = self._grow_tree_once(X, new_embed)
             embeddings.append(new_embed)
 
-        # for new_embed in embeddings:
-        #     # print(np.unique(DBSCAN(self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
-        #     # print(np.unique(OPTICS(max_eps = self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
-        # #     print(np.unique(BayesianGaussianMixture(50).fit_predict(new_embed)).shape)
-        #     self._get_pop_off_clusters(new_embed)
-            # self._get_tsne_clusters_via_shrinkage(X, new_embed)
+        if get_clusters:
+            clusters = []
+            for new_embed in embeddings:
+            #     # print(np.unique(DBSCAN(self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
+            #     # print(np.unique(OPTICS(max_eps = self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
+            # #     print(np.unique(BayesianGaussianMixture(50).fit_predict(new_embed)).shape)
+            #     self._get_pop_off_clusters(new_embed)
+                # self._get_tsne_clusters_via_shrinkage(X, new_embed)
+                this_clusters = self._get_clusters_via_subsampled_spectral(new_embed)
+                this_clusters = self._convert_labels_to_increasing(this_clusters, new_embed)
+                # print(this_clusters[:20])
+                clusters.append(this_clusters)
+            clusters = np.array(clusters)
 
         embeddings = np.array(embeddings).reshape(X.shape[0], len(embeddings), -1)
 
-        return embeddings
+        if get_clusters:
+            return embeddings, clusters
+        else:
+            return embeddings
+
+    def _get_clusters_via_spectral(self, X, n_neighbors = 15):
+        X = np.array(X)
+        sample_count = X.shape[0]
+        # sorted_inds = np.argsort(X, axis = 0).flatten()
+        # print(sorted_inds[:20])
+        # print(sorted_inds.shape)
+        # X = X[sorted_inds]
+        # if n_samples is not None and n_samples < sample_count:
+        #     inds = np.random.choice(X.shape[0], n_samples, replace = False)
+        #     X = X[inds]
+        A = NearestNeighbors(n_neighbors = n_neighbors).fit(X).kneighbors_graph(X)
+        A = (A + A.T) / 2
+        A = A - np.eye(A.shape[0])
+        # print(A[5, 5])
+        # print(A.shape)
+        sums = np.array(A.sum(axis = 0)).reshape(-1)
+        # # print("got here")
+        # # sums = sums[0]
+        # print(sums[:10])
+        # print(sums.shape)
+        D = np.diag(sums)
+        # D = np.identity(A.shape[0]) * n_neighbors
+        L = D - A
+        # D_shrunken = np.diag(sums**(-1/2))
+        # L = D_shrunken@L@D_shrunken
+        eig_val, eig_vec = eigh(L)
+        eig_val = eig_val
+        # print(np.sum(eig_val < 1e-10))
+        # print(eig_val[:20])
+        signals = eig_val < ZERO_CUTOFF
+        k = sum(signals)
+        print(k)
+        indicators = np.abs(np.array(eig_vec[:, :k])) # shouldn't have to do this ?
+        # print(indicators[0])
+        # clusters = np.zeros(sample_count)
+        # for i, indicator in enumerate(indicators):
+        #     # print(indicator.shape)
+        #     locations = indicator > 1e-10
+        #     print(sum(locations))
+        #     print(indicator[locations][:20])
+        #     print(max(indicator))
+        #     clusters[locations] = i + 1
+
+        clusters = KMeans(n_clusters = k).fit_predict(indicators)
+        # print(clusters)
+
+        # plt.figure()
+        # plt.scatter(X, np.ones((X.shape[0])), c = clusters)
+        # plt.show()
+
+        return clusters
+
+    def _get_clusters_via_subsampled_spectral(self, X, n_neighbors = 15, n_samples = 1000):
+        n_samples = min(n_samples, X.shape[0])
+        X = np.array(X)
+        sample_count = X.shape[0]
+        inds = np.random.choice(X.shape[0], n_samples, replace = False)
+        samples = X[inds]
+        A = NearestNeighbors(n_neighbors = n_neighbors).fit(samples).kneighbors_graph(samples)
+        A = (A + A.T) / 2
+        A = A - np.eye(A.shape[0])
+        sums = np.array(A.sum(axis = 0)).reshape(-1)
+        D = np.diag(sums)
+        L = D - A
+        # D_shrunken = np.diag(sums**(-1/2))
+        # L = D_shrunken@L@D_shrunken
+        eig_val, eig_vec = eigh(L, eigvals = [0, int(n_samples ** .5)])
+        eig_val = eig_val
+        signals = eig_val < ZERO_CUTOFF
+        k = sum(signals)
+        print(k)
+        indicators = np.abs(np.array(eig_vec[:, :k])) # shouldn't have to do this ?
+
+        clusters = KMeans(n_clusters = k).fit_predict(indicators)
+        
+        classifier = KNeighborsClassifier().fit(samples, clusters)
+        all_clusters = classifier.predict(X)
+        # all_clusters = self._convert_labels_to_increasing(all_clusters, X)
+
+        return all_clusters
+
+    def _convert_labels_to_increasing(self, labels, embedding):
+        # print(embedding.shape)
+        inds = np.argsort(embedding, axis = 0).flatten()
+        # print(inds.shape)
+        # print(inds[:20])
+        label_dict = dict()
+        n_added = 0
+        for label in labels[inds]:
+            if label not in label_dict:
+                label_dict[label] = n_added
+                n_added += 1
+
+        new_labels = []
+        for label in labels:
+            new_labels.append(label_dict[label])
+
+        new_labels = np.array(new_labels)
+
+        return new_labels
 
     def _get_tsne_clusters_via_shrinkage(self, X, init_embed, max_iter = 50):
         # get pairwise distances between points that are next to each other
@@ -462,34 +579,34 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
-    # legends = ['Rod BC',
-    #      'Muller Glia',
-    #      'BC1A',
-    #      'BC1B',
-    #      'BC2',
-    #      'BC3A',
-    #      'BC3B',
-    #      'BC4',
-    #      'BC5A',
-    #      'BC5B',
-    #      'BC5C',
-    #      'BC5D',
-    #      'BC6',
-    #      'BC7',
-    #      'BC8/9_1',
-    #      'BC8/9_2',
-    #      'Amacrine_1',
-    #      'Amacrine_2',
-    #      'Rod PR',
-    #      'Cone PR'
-    # ]
-    # X = np.load("shekhar_data.npy")
+    legends = ['Rod BC',
+         'Muller Glia',
+         'BC1A',
+         'BC1B',
+         'BC2',
+         'BC3A',
+         'BC3B',
+         'BC4',
+         'BC5A',
+         'BC5B',
+         'BC5C',
+         'BC5D',
+         'BC6',
+         'BC7',
+         'BC8/9_1',
+         'BC8/9_2',
+         'Amacrine_1',
+         'Amacrine_2',
+         'Rod PR',
+         'Cone PR'
+    ]
+    X = np.load("shekhar_data.npy")
     # print(X.shape)
-    # labels = np.load("shekhar_labels.npy")
+    labels = np.load("shekhar_labels.npy")
     # # subset = np.random.choice(X.shape[0], 5000, replace = False)
-    # dim_reduction = PCA(100) # 100 is good 
+    dim_reduction = PCA(100) # 100 is good 
     # # dim_reduction = SpectralEmbedding(100)
-    # X = dim_reduction.fit_transform(X)
+    X = dim_reduction.fit_transform(X)
     # # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
     # X = np.load("shekhar_data.npy")
@@ -499,7 +616,7 @@ if __name__ == "__main__":
     # X = dim_reduction.fit_transform(X)
     # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
-    X, channels, labels = load_cytof()
+    # X, channels, labels = load_cytof()
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
@@ -514,12 +631,17 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    # X, labels = load_big_mnist()
+
+    # X = PCA(100).fit_transform(X)
+
+    tree = TreeSNE(init_df = 1, df_ratio = .9, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # use .8 for bio thing
     # and .7 for MNIST
+    # use .65 for cytof
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings = tree.fit(X, n_layers = 15)
-    np.save("cytof_embeddings.npy", embeddings)
+    embeddings, clusters = tree.fit(X, n_layers = 40, get_clusters = True)
+    np.save("shenkar_embeddings.npy", embeddings)
     # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
@@ -531,4 +653,7 @@ if __name__ == "__main__":
     # plt.show()
     print(embeddings.shape)
     # print(labels.shape)
-    display_tree(embeddings, X[:, channels.index("cd8")])
+    # display_tree(embeddings, X[:, channels.index("cd45ra")])
+    display_tree(embeddings, level_labels = clusters)
+    # display_tree(embeddings, true_labels = labels)
+    display_tree_categorical(embeddings, labels, legend_labels = legends, transparency = .01)
