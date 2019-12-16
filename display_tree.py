@@ -9,7 +9,7 @@ def getColor(c, N, idx, distinct = False):
     N is the number of colors you want in total
     idx is just an index that will yield the specific color
     """
-    if distinct and N <= 26:
+    if distinct and N <= 59:
         # distinct_colors_26 = np.asarray([(240,163,255),(0,117,220),(153,63,0),(76,0,92),(25,25,25), \
         #                         (0,92,49),(43,206,72),(255,204,153),(128,128,128),(148,255,181), \
         #                         (143,124,0),(157,204,0),(194,0,136),(0,51,128),(255,164,5), \
@@ -47,7 +47,13 @@ def getColor(c, N, idx, distinct = False):
 
 
 
-def display_tree(embeddings, true_labels = None):
+def display_tree(embeddings, true_labels = None, transparency = None):
+    if transparency is None:
+        if true_labels is None:
+            transparency = 0.05
+        else:
+            transparency = 500/float(len(true_labels))
+
     plt.figure()
     embeddings = embeddings.reshape(embeddings.shape[1], -1)
     # print(embeddings.shape)
@@ -55,9 +61,9 @@ def display_tree(embeddings, true_labels = None):
         # embedding = embedding[true_labels == 0]
         # print(embedding.shape)
         if true_labels is not None:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = true_labels)
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = true_labels)
         else:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05)
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency)
     if true_labels is not None:
         color_bar = plt.colorbar()
         color_bar.set_alpha(1)

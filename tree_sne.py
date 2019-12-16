@@ -462,6 +462,7 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
+    # SHEKHAR
     # legends = ['Rod BC',
     #      'Muller Glia',
     #      'BC1A',
@@ -483,23 +484,27 @@ if __name__ == "__main__":
     #      'Rod PR',
     #      'Cone PR'
     # ]
-    # X = np.load("shekhar_data.npy")
-    # print(X.shape)
-    # labels = np.load("shekhar_labels.npy")
-    # # subset = np.random.choice(X.shape[0], 5000, replace = False)
+    # X = np.load("shekhar_data.npy", allow_pickle = True)
+    # colnames = np.load("shekhar_genes_cols.npy", allow_pickle= True)
+    # # print(X.shape)
+    # #labels = np.load("shekhar_labels.npy", allow_pickle = True)
+    # markers = ["Pcdh17", "Pcdh10", "Erbb4", "Nnat", "Col11a1", 
+    #         "Sox6", "Chrm2", "Slitrk5", "Lrrtm1", "Cck", 
+    #         "Lect1", "Igfn1", "Serpini1", "Cpne9", "Vstm2b", 
+    #         "Casp7"]
+
+    # labels = get_labels_by_max(X, colnames, colnames_subset=markers)
+    #print(len(set(labels)))
+    # subset = np.random.choice(X.shape[0], 5000, replace = False)
     # dim_reduction = PCA(100) # 100 is good 
     # # dim_reduction = SpectralEmbedding(100)
     # X = dim_reduction.fit_transform(X)
     # # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
-    # X = np.load("shekhar_data.npy")
-    # labels = np.load("shekhar_labels.npy")
-    # subset = np.random.choice(X.shape[0], 5000, replace = False)
-    # dim_reduction = PCA(100)
-    # X = dim_reduction.fit_transform(X)
-    # print(dim_reduction.explained_variance_ratio_)
-    # print(X.shape)
-    # X, channels, labels = load_cytof()
+
+    # CYTOF
+    X, channels, labels = load_cytof()
+
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
@@ -517,11 +522,11 @@ if __name__ == "__main__":
     # plt.show()
 
     tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
-    # use .8 for bio thing
-    # and .7 for MNIST
-    # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
+    # # use .8 for bio thing
+    # # and .7 for MNIST
+    # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
     embeddings = tree.fit(X, n_layers = 15)
-    np.save("cytof_embeddings.npy", embeddings)
+    # np.save("cytof_embeddings.npy", embeddings)
     # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
@@ -533,7 +538,15 @@ if __name__ == "__main__":
     # plt.show()
     #np.save("faces_lfw_embed", embeddings)
     #np.save("shekhar_embed", embeddings)
-    embeddings = np.load("shekhar_embed.npy", allow_pickle = True)
+    # embeddings = np.load("shekhar_embed.npy", allow_pickle = True)
     print(embeddings.shape)
     # print(labels.shape)
-    display_tree(embeddings, X[:, channels.index("cd8")])
+    # display_tree(embeddings, X[:, list(colnames).index("Pcdh17")])
+    # display_tree_categorical(embeddings, labels, legend_labels = markers, distinct=True, transparency=0.01)
+    display_tree_categorical(embeddings, labels, distinct=True)
+
+
+
+
+
+
