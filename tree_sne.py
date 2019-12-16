@@ -514,12 +514,13 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    tree = TreeSNE(init_df = 1, df_ratio = .8, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # use .8 for bio thing
     # and .7 for MNIST
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings = tree.fit(X, n_layers = 25)
-    np.save("embeddings.npy", embeddings)
+    embeddings = tree.fit(X, n_layers = 15)
+    np.save("cytof_embeddings.npy", embeddings)
+    # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
     # print(np.sort(embeddings[:, 1], axis = 0)[:10])
@@ -529,4 +530,5 @@ if __name__ == "__main__":
     # plt.scatter(embeddings[:, 1], np.zeros(embeddings.shape[0]), c = data.target)
     # plt.show()
     print(embeddings.shape)
-    display_tree_categorical(embeddings, labels)
+    # print(labels.shape)
+    display_tree(embeddings, X[:, channels.index("cd8")])

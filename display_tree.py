@@ -23,11 +23,12 @@ def display_tree(embeddings, true_labels = None):
         # print(embedding.shape)
         if true_labels is not None:
             plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05, c = true_labels)
-            color_bar = plt.colorbar()
-            color_bar.set_alpha(1)
-            color_bar.draw_all()
         else:
             plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = .05)
+    if true_labels is not None:
+        color_bar = plt.colorbar()
+        color_bar.set_alpha(1)
+        color_bar.draw_all()
     plt.show()
 
 def display_tree_categorical(embeddings, true_labels, legend_labels = None, transparency = None):
