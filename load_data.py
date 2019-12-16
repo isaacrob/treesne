@@ -46,7 +46,7 @@ def load_cytof():
 	cytof_std = np.where(cytof_std==0, 1, cytof_std) #if sd is 0 make it 1 instead so don't divide by 0
 	cytof_scaled = (cytof - cytof_mean)/cytof_std
 
-	highest_expressed_cols = np.argmax(cytof, axis=1)
+	highest_expressed_cols = np.argmax(cytof_scaled, axis=1)
 	highest_expressed = list(np.asarray(channels)[highest_expressed_cols])
 
 	return cytof, channels, highest_expressed

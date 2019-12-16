@@ -461,19 +461,19 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
-    # X = np.load("shekhar_data.npy")
-    # labels = np.load("shekhar_labels.npy")
-    # subset = np.random.choice(X.shape[0], 5000, replace = False)
+    # X = np.load("shekhar_data.npy", allow_pickle=True)
+    labels = np.load("shekhar_labels.npy", allow_pickle = True)
+    # # subset = np.random.choice(X.shape[0], 5000, replace = False)
     # dim_reduction = PCA(100)
     # X = dim_reduction.fit_transform(X)
     # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
-    X, channels, labels = load_cytof()
+    # X, channels, labels = load_cytof()
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
-    # data = datasets.fetch_olivetti_faces()
-    # dim_reduction = PCA(100)
+    # data = datasets.fetch_lfw_people()
+    # dim_reduction = PCA(40)
     # X = dim_reduction.fit_transform(data.data)
     # print(dim_reduction.explained_variance_ratio_)
     # labels = data.target
@@ -482,11 +482,11 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    tree = TreeSNE(init_df = 1, df_ratio = .8, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
-    # use .8 for bio thing
-    # and .7 for MNIST
-    # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings = tree.fit(X, n_layers = 25)
+    # tree = TreeSNE(init_df = 1, df_ratio = .8, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    # # use .8 for bio thing
+    # # and .7 for MNIST
+    # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
+    # embeddings = tree.fit(X, n_layers = 25)
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
     # print(np.sort(embeddings[:, 1], axis = 0)[:10])
@@ -495,5 +495,9 @@ if __name__ == "__main__":
     # plt.figure()
     # plt.scatter(embeddings[:, 1], np.zeros(embeddings.shape[0]), c = data.target)
     # plt.show()
+    #np.save("faces_lfw_embed", embeddings)
+    #np.save("shekhar_embed", embeddings)
+    embeddings = np.load("shekhar_embed.npy", allow_pickle = True)
     print(embeddings.shape)
-    display_tree_categorical(embeddings, labels)
+    #display_tree(embeddings)
+    display_tree_categorical(embeddings, labels, distinct=True, transparency=0.01)
