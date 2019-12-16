@@ -64,5 +64,7 @@ def load_shekhar():
     data = data[keep_inds]
     labels = labels[keep_inds]
     
-    #np.save("shekhar_data", data)
+    #np.save("shekhar_data", data.values)
     #np.save("shekhar_labels", labels)
+
+    # return data.values, labels

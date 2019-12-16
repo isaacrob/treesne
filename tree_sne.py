@@ -579,6 +579,10 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
+=======
+    # SHEKHAR
+>>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
     legends = ['Rod BC',
          'Muller Glia',
          'BC1A',
@@ -600,15 +604,32 @@ if __name__ == "__main__":
          'Rod PR',
          'Cone PR'
     ]
+<<<<<<< HEAD
     X = np.load("shekhar_data.npy")
     # print(X.shape)
     labels = np.load("shekhar_labels.npy")
     # # subset = np.random.choice(X.shape[0], 5000, replace = False)
     dim_reduction = PCA(100) # 100 is good 
+=======
+    # X = np.load("shekhar_data.npy", allow_pickle = True)
+    # colnames = np.load("shekhar_genes_cols.npy", allow_pickle= True)
+    # print(X.shape)
+    labels = np.load("shekhar_labels.npy", allow_pickle = True)
+    # markers = ["Pcdh17", "Pcdh10", "Erbb4", "Nnat", "Col11a1", 
+    #         "Sox6", "Chrm2", "Slitrk5", "Lrrtm1", "Cck", 
+    #         "Lect1", "Igfn1", "Serpini1", "Cpne9", "Vstm2b", 
+    #         "Casp7"]
+
+    # labels = get_labels_by_max(X, colnames, colnames_subset=markers)
+    #print(len(set(labels)))
+    # subset = np.random.choice(X.shape[0], 5000, replace = False)
+    # dim_reduction = PCA(100) # 100 is good 
+>>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
     # # dim_reduction = SpectralEmbedding(100)
     X = dim_reduction.fit_transform(X)
     # # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
+<<<<<<< HEAD
     # X = np.load("shekhar_data.npy")
     # labels = np.load("shekhar_labels.npy")
     # subset = np.random.choice(X.shape[0], 5000, replace = False)
@@ -617,9 +638,17 @@ if __name__ == "__main__":
     # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
     # X, channels, labels = load_cytof()
+=======
+
+    # CYTOF
+    # X, channels, labels = load_cytof()
+
+>>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
+    # data = datasets.fetch_lfw_people()
+    # dim_reduction = PCA(40)
     # labels = data.target
     # data = datasets.fetch_olivetti_faces()
     # dim_reduction = PCA(100)
@@ -631,6 +660,7 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
+<<<<<<< HEAD
     # X, labels = load_big_mnist()
 
     # X = PCA(100).fit_transform(X)
@@ -642,6 +672,14 @@ if __name__ == "__main__":
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
     embeddings, clusters = tree.fit(X, n_layers = 40, get_clusters = True)
     np.save("shenkar_embeddings.npy", embeddings)
+=======
+    # tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    # # use .8 for bio thing
+    # # and .7 for MNIST
+    # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
+    # embeddings = tree.fit(X, n_layers = 15)
+    # np.save("cytof_embeddings.npy", embeddings)
+>>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
     # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
@@ -651,9 +689,26 @@ if __name__ == "__main__":
     # plt.figure()
     # plt.scatter(embeddings[:, 1], np.zeros(embeddings.shape[0]), c = data.target)
     # plt.show()
+    #np.save("faces_lfw_embed", embeddings)
+    #np.save("shekhar_embed", embeddings)
+    embeddings = np.load("shekhar_embed.npy", allow_pickle = True)
     print(embeddings.shape)
     # print(labels.shape)
+<<<<<<< HEAD
     # display_tree(embeddings, X[:, channels.index("cd45ra")])
     display_tree(embeddings, level_labels = clusters)
     # display_tree(embeddings, true_labels = labels)
     display_tree_categorical(embeddings, labels, legend_labels = legends, transparency = .01)
+=======
+    # display_tree(embeddings, X[:, list(colnames).index("Pcdh17")])
+    display_tree_categorical(embeddings, labels, legend_labels = legends,
+        distinct=True, transparency=0.01, 
+        not_gray = ["BC6", "BC7"])
+    # display_tree_categorical(embeddings, labels, distinct=True)
+
+
+
+
+
+
+>>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1

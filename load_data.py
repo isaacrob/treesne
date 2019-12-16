@@ -40,18 +40,27 @@ def load_cytof():
 	cytof = load_json_files("../cytof_data/cytof_data.json")
 	channels = load_json_files("../cytof_data/cytof_channel_names.json")
 
-	# scale cytof columns with normal dist
-	cytof_mean = cytof.mean(axis=0)
-	cytof_std = cytof.std(axis=0)
-	cytof_std = np.where(cytof_std==0, 1, cytof_std) #if sd is 0 make it 1 instead so don't divide by 0
-	cytof_scaled = (cytof - cytof_mean)/cytof_std
-
-	highest_expressed_cols = np.argmax(cytof_scaled, axis=1)
-	highest_expressed = list(np.asarray(channels)[highest_expressed_cols])
+	highest_expressed = get_labels_by_max(cytof, channels)
 
 	return cytof, channels, highest_expressed
 
+def get_labels_by_max(data, colnames, colnames_subset = None):
+	if colnames_subset is not None:
+		colnames_subset_set = set(colnames_subset)
+		colnums = [i for i in range(len(colnames)) if colnames[i] in colnames_subset_set]
+		data = data[:,colnums]
+		colnames = colnames_subset
 
+	# scale columns with normal dist
+	means = data.mean(axis=0)
+	stds = data.std(axis=0)
+	stds = np.where(stds==0, 1, stds) #if sd is 0 make it 1 instead so don't divide by 0
+	scaled = (data - means)/stds
+
+	max_cols = np.argmax(scaled, axis=1)
+	max_labels = list(np.asarray(colnames)[max_cols])
+
+	return max_labels
 
 
 
