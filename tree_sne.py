@@ -28,8 +28,9 @@ class TreeSNE():
     # returns matrix with points and different 1D embedding
     # locations
     # later, return matrix containing cluster level assignments
-    def __init__(self, init_df = 1, df_ratio = .9, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = None, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True, max_iter = 5000):
+    def __init__(self, init_df = 1, df_ratio = None, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = None, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True, max_iter = 5000):
         self.init_df = init_df
+        # if df_ratio is None, will be defined automatically later based on number of layers
         self.df_ratio = df_ratio
         self.rand_state = rand_state
         # assert ignore_later_exag is False, "ignore_later_exag not yet supported"
@@ -78,6 +79,11 @@ class TreeSNE():
         return new_embed
 
     def _grow_tree(self, X, n_layers = 64, get_clusters = False):
+        if self.df_ratio is None:
+            # set by default to scale down to df .01 in the number of layers
+            self.df_ratio = 2**(np.log2(.01) / n_layers)
+            print("using df_ratio %f to reach df .01 in %d layers"%(self.df_ratio, n_layers))
+
         if self.perp is None:
             self.perp = X.shape[0] ** .5
             self.curr_perp = self.perp
@@ -127,7 +133,8 @@ class TreeSNE():
                 # self._get_tsne_clusters_via_shrinkage(X, new_embed)
                 print("clustering level %d"%(i))
                 this_clusters, k = self._get_clusters_via_subsampled_spectral(new_embed)
-                # this_clusters = self._convert_labels_to_increasing(this_clusters, new_embed, k)
+                # this_clusters, k = self._get_clusters_via_block_spectral(new_embed)
+                this_clusters = self._convert_labels_to_increasing(this_clusters, new_embed, k)
                 # print(this_clusters[:20])
                 if k <= old_k:
                     # n_dups += 1
@@ -151,8 +158,11 @@ class TreeSNE():
 
         embeddings = np.array(embeddings).reshape(X.shape[0], len(embeddings), -1)
 
-        print(best_clusters)
-        print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
+        # print(best_clusters)
+        if best_df_range == -1:
+            print("no stable clustering found, try using more levels")
+        else:
+            print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
 
         if get_clusters:
             return embeddings, clusters
@@ -211,44 +221,46 @@ class TreeSNE():
 
         return clusters, k
 
-    def _get_snn_graph(self, samples, n_neighbors):
-        nn_graph = NearestNeighbors(n_neighbors = n_neighbors).fit(samples)
-        A = nn_graph.kneighbors_graph(samples)
+    def _get_snn_graph(self, samples, n_neighbors, fix_lonely = False):
+        nn_graph = NearestNeighbors(n_neighbors = n_neighbors).fit(samples.reshape(-1, 1))
+        A = nn_graph.kneighbors_graph(samples.reshape(-1, 1))
         A = A - np.eye(A.shape[0])
         A = np.floor((A + A.T) / 2) # if floored, is shared nearest neighbors
         # take ones where they have no neighbors and add only one neighbor, which can't mess up clusters
-        are_you_lonely = np.array(A.sum(axis = 1) == 0).flatten()
-        # print(are_you_lonely.shape)
-        if np.sum(are_you_lonely) != 0:
-            # print("found lonely points")
-            lonely_individuals = samples[are_you_lonely].reshape(-1, 1)
-            # print(lonely_individuals.shape)
-            lonely_friends = nn_graph.kneighbors_graph(lonely_individuals)
-            # print(type(lonely_friends))
-            # print(lonely_friends.shape)
-            for i, these_friends in enumerate(lonely_friends.A):
-                these_friends = these_friends.reshape(-1)
-                # print(these_friends.shape)
-                places_to_check = np.logical_and(these_friends == 1, ~are_you_lonely)
-                friends = np.where(places_to_check)[0]
-                friend_dists = np.abs(lonely_individuals[i] - samples[friends])
-                best_friend_index = np.argmin(friend_dists)
-                best_friend = friends[best_friend_index]
-                # print(A.shape)
-                A[are_you_lonely, best_friend] = 1
-                A[best_friend, are_you_lonely] = 1
+        if fix_lonely:
+            are_you_lonely = np.array(A.sum(axis = 1) == 0).flatten()
+            # print(are_you_lonely.shape)
+            if np.sum(are_you_lonely) != 0:
+                # print("found lonely points")
+                lonely_individuals = samples[are_you_lonely].reshape(-1, 1)
+                # print(lonely_individuals.shape)
+                lonely_friends = nn_graph.kneighbors_graph(lonely_individuals)
+                # print(type(lonely_friends))
+                # print(lonely_friends.shape)
+                for i, these_friends in enumerate(lonely_friends.A):
+                    these_friends = these_friends.reshape(-1)
+                    # print(these_friends.shape)
+                    places_to_check = np.logical_and(these_friends == 1, ~are_you_lonely)
+                    friends = np.where(places_to_check)[0]
+                    friend_dists = np.abs(lonely_individuals[i] - samples[friends])
+                    best_friend_index = np.argmin(friend_dists)
+                    best_friend = friends[best_friend_index]
+                    # print(A.shape)
+                    A[are_you_lonely, best_friend] = 1
+                    A[best_friend, are_you_lonely] = 1
             # A[are_you_lonely, are_you_lonely] = lonely_friends
         # then do it again to re symmetrize
         A = (A + A.T) / 2
         assert np.sum(A != A.T) == 0, "A is not symmetric"
-        assert np.sum(A.sum(axis = 1) == 0) == 0, "someone is lonely"
+        if fix_lonely:
+            assert np.sum(A.sum(axis = 1) == 0) == 0, "someone is lonely"
         assert np.sum(A < 0) == 0, "an entry is negative"
         sums = np.array(A.sum(axis = 1)).reshape(-1)
         D = np.diag(sums)
         L = D - A
         # L = (L + L.T) / 2
-        D_shrunken = np.diag(sums**(-1/2))
-        L = D_shrunken@L@D_shrunken
+        # D_shrunken = np.diag(sums**(-1/2))
+        # L = D_shrunken@L@D_shrunken
 
         return L
 
@@ -261,41 +273,74 @@ class TreeSNE():
         sample_count = X.shape[0]
         inds = np.random.choice(X.shape[0], n_samples, replace = False)
         samples = X[inds]
-        L = self._get_snn_graph(samples, n_neighbors)
+        L = self._get_snn_graph(samples, n_neighbors, fix_lonely = False)
         eig_val, eig_vec = eigh(L, eigvals = [0, int(X.shape[0] ** .5)])
         eig_val = eig_val
         signals = eig_val < ZERO_CUTOFF
         k = sum(signals)
-        # print(eig_val[:k])
+        # print(eig_val[:k + 1])
         # print(k)
-        indicators = np.abs(np.array(eig_vec[:, :k])) # shouldn't have to do this ?
-
-        # print(indicators[:5])
-        clusters = np.argmax(indicators, axis = 1).flatten()
+        indicators = np.array(eig_vec[:, :k]) # shouldn't have to do abs ?
+        _, clusters = np.unique(indicators.astype(np.float16), return_inverse = True, axis = 0)
+        # print(indicators[:20])
+        # clusters = np.argmax(indicators, axis = 1).flatten()
         # clusters = KMeans(n_clusters = k).fit_predict(indicators)
         
         classifier = KNeighborsClassifier().fit(samples, clusters)
         all_clusters = classifier.predict(X)
 
-        for i in range(k):
-            count = np.sum(all_clusters == i)
-            if count == 0:
-                # print("found an empty cluster")
-                all_clusters[all_clusters > i] -= 1
-                k -= 1
+        # for i in range(k):
+        #     count = np.sum(all_clusters == i)
+        #     if count == 0:
+        #         # print("found an empty cluster")
+        #         all_clusters[all_clusters > i] -= 1
+        #         k -= 1
             # print("cluster %d has %d members"%(i, np.sum(all_clusters == i)))
 
         # all_clusters = self._convert_labels_to_increasing(all_clusters, X)
 
         return all_clusters, k
 
-    # def _get_clusters_via_ranged_spectral(self, X, n_neighbors = None):
-    #     X = np.array(X)
-    #     if n_neighbors is None:
-    #         n_neighbors = 2*np.log(X.shape[0])
+    def _get_clusters_via_block_spectral(self, X, n_neighbors = None):
+        # idea is eigenvectors will be sequential entries in the sorted data
+        # so sort the data and check for block eigenvectors
+        X = np.array(X).reshape(-1)
+        print(X.shape)
+        n_samples = X.shape[0]
+        if n_neighbors is None:
+            n_neighbors = int(2*np.log(n_samples))
 
-    #     L = self._get_snn_graph()
+        sorted_X_inds = np.argsort(X)
+        L = self._get_snn_graph(X[sorted_X_inds], n_neighbors)
 
+        clusters = np.zeros(n_samples)
+        # indicator = np.zeros(n_samples)
+        indicator = np.tri(*L.shape, dtype = int)
+        k = 0
+        loc = 0
+        while loc < n_samples:
+            prod = L @ indicator.T
+            for i, row in enumerate(prod):
+                if np.sum(row > ZERO_CUTOFF) == 0:
+                    print("found a cluster")
+                    clusters[sorted_X_inds[indicator[i]]] = k
+                    k += 1
+                    break
+            indicator = indicator[i:]
+            indicator[:, :i + loc] = 0
+            loc += i
+
+        # for i in range(n_samples):
+        #     print(i)
+        #     indicator[i] = 1
+        #     prod = L @ indicator
+        #     if np.sum(prod > ZERO_CUTOFF) == 0:
+        #         # this means it's an eigenvector
+        #         clusters[sorted_X_inds[indicator]] = k
+        #         k += 1
+        #         indicator = np.zeros(n_samples)
+
+        return clusters, k
 
     def _convert_labels_to_increasing(self, labels, embedding, k):
         # print(embedding.shape)
@@ -317,7 +362,7 @@ class TreeSNE():
 
         new_labels = np.array(new_labels)
 
-        assert np.sum(np.diff(new_labels[inds]) < 0) == 0, "labels are not sorted" 
+        # assert np.sum(np.diff(new_labels[inds]) < 0) == 0, "labels are not sorted" 
 
         return new_labels
 
@@ -753,6 +798,7 @@ if __name__ == "__main__":
     # X = np.random.rand(2000, 100)
 
     # tree = TreeSNE(init_df = 1, df_ratio = .95, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    tree = TreeSNE(init_df = 1, df_ratio = None, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # use .8 for bio thing
     # and .7 for MNIST
     # use .65 for cytof
