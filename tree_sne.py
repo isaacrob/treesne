@@ -158,13 +158,12 @@ class TreeSNE():
 
         embeddings = np.array(embeddings).reshape(X.shape[0], len(embeddings), -1)
 
-        # print(best_clusters)
-        if best_df_range == -1:
-            print("no stable clustering found, try using more levels")
-        else:
-            print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
-
         if get_clusters:
+            # print(best_clusters)
+            if best_df_range == -1:
+                print("no stable clustering found, try using more levels")
+            else:
+                print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
             return embeddings, clusters
         else:
             return embeddings
@@ -793,7 +792,7 @@ if __name__ == "__main__":
 
     X, labels = load_big_mnist()
 
-    # X = PCA(100).fit_transform(X)
+    X = PCA(100).fit_transform(X)
 
     # X = np.random.rand(2000, 100)
 
@@ -809,8 +808,8 @@ if __name__ == "__main__":
     # # use .8 for bio thing
     # # and .7 for MNIST
     # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    # embeddings = tree.fit(X, n_layers = 15)
-    # np.save("cytof_embeddings.npy", embeddings)
+    embeddings = tree.fit(X, n_layers = 30, get_clusters = False)
+    np.save("bigmnist_embed_30layers_autores.npy", embeddings)
     # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
@@ -827,7 +826,7 @@ if __name__ == "__main__":
     # print(labels.shape)
     # display_tree(embeddings, X[:, channels.index("cd8")])
     # display_tree(embeddings, level_labels = clusters)
-    embeddings = np.load("big_mnist_embeddings.npy", allow_pickle = True)
+    # embeddings = np.load("big_mnist_embeddings.npy", allow_pickle = True)
     display_tree_mnist(embeddings, true_labels = labels, legend_labels = [0,1,2,3,4,5,6,7,8,9])
     # display_tree_categorical(embeddings, true_labels = labels, legend_labels = [0,1,2,3,4,5,6,7,8,9], distinct = True)
     # display_tree(embeddings, X[:, list(colnames).index("Pcdh17")])
