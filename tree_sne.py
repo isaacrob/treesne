@@ -748,17 +748,17 @@ if __name__ == "__main__":
 
     X, labels = load_big_mnist()
 
-    X = PCA(100).fit_transform(X)
+    # X = PCA(100).fit_transform(X)
 
     # X = np.random.rand(2000, 100)
 
-    tree = TreeSNE(init_df = 1, df_ratio = .95, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    # tree = TreeSNE(init_df = 1, df_ratio = .95, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # use .8 for bio thing
     # and .7 for MNIST
     # use .65 for cytof
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings, clusters = tree.fit(X, n_layers = 15, get_clusters = True)
-    # np.save("mnist_embeddings.npy", embeddings)
+    # embeddings, clusters = tree.fit(X, n_layers = 100, get_clusters = True)
+    # np.save("big_mnist_embeddings.npy", embeddings)
     # tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # # use .8 for bio thing
     # # and .7 for MNIST
@@ -781,7 +781,9 @@ if __name__ == "__main__":
     # print(labels.shape)
     # display_tree(embeddings, X[:, channels.index("cd8")])
     # display_tree(embeddings, level_labels = clusters)
-    display_tree(embeddings, true_labels = labels)
+    embeddings = np.load("big_mnist_embeddings.npy", allow_pickle = True)
+    display_tree_mnist(embeddings, true_labels = labels, legend_labels = [0,1,2,3,4,5,6,7,8,9])
+    # display_tree_categorical(embeddings, true_labels = labels, legend_labels = [0,1,2,3,4,5,6,7,8,9], distinct = True)
     # display_tree(embeddings, X[:, list(colnames).index("Pcdh17")])
     # display_tree_categorical(embeddings, labels, legend_labels = legends,
     #     distinct=True, transparency=0.01, 
