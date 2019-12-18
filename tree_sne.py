@@ -85,6 +85,8 @@ class TreeSNE():
         if self.init_with_pca:
             init_embed = PCA(self.map_dims).fit_transform(X)
 
+        print("getting embedding 1")
+
         new_embed = fast_tsne(
             X,
             map_dims = self.map_dims, 
@@ -92,7 +94,7 @@ class TreeSNE():
             df = self.init_df,
             initialization = None if not self.init_with_pca else init_embed,
             seed = self.rand_state,
-            load_affinities = "save",
+            # load_affinities = "save",
             start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
             late_exag_coeff = self.late_exag_coeff,
             learning_rate = X.shape[0] / 10,
@@ -103,24 +105,54 @@ class TreeSNE():
 
         embeddings = [new_embed]
         for i in range(n_layers - 1):
+            print("getting embedding %d"%(i + 1))
             new_embed = self._grow_tree_once(X, new_embed)
             embeddings.append(new_embed)
 
         if get_clusters:
+            old_k = 0
+            best_k = 1
+            top_df = self.init_df
+            curr_df = self.init_df
+            best_df_range = -1
+            # best_n_dups = 0
+            # n_dups = 0
             clusters = []
-            for new_embed in embeddings:
+            best_clusters = None
+            for i, new_embed in enumerate(embeddings):
             #     # print(np.unique(DBSCAN(self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
             #     # print(np.unique(OPTICS(max_eps = self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
             # #     print(np.unique(BayesianGaussianMixture(50).fit_predict(new_embed)).shape)
             #     self._get_pop_off_clusters(new_embed)
                 # self._get_tsne_clusters_via_shrinkage(X, new_embed)
-                this_clusters = self._get_clusters_via_subsampled_spectral(new_embed)
-                this_clusters = self._convert_labels_to_increasing(this_clusters, new_embed)
+                print("clustering level %d"%(i))
+                this_clusters, k = self._get_clusters_via_subsampled_spectral(new_embed)
+                # this_clusters = self._convert_labels_to_increasing(this_clusters, new_embed, k)
                 # print(this_clusters[:20])
-                clusters.append(this_clusters)
+                if k <= old_k:
+                    # n_dups += 1
+                    print("duplicate at %d clusters"%old_k)
+                    clusters.append(clusters[-1])
+                    df_range = top_df - curr_df
+                    if df_range > best_df_range and old_k != 1: # only consider valid clustering after first split
+                        print("found new best clustering with k=%d"%old_k)
+                        best_df_range = df_range
+                        best_k = old_k
+                        best_clusters = clusters[-1]
+                else:
+                    n_dups = 0
+                    top_df = curr_df
+                    old_k = k
+                    clusters.append(this_clusters)
+                print(old_k)
+                print(k)
+                curr_df *= self.df_ratio
             clusters = np.array(clusters)
 
         embeddings = np.array(embeddings).reshape(X.shape[0], len(embeddings), -1)
+
+        print(best_clusters)
+        print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
 
         if get_clusters:
             return embeddings, clusters
@@ -177,38 +209,95 @@ class TreeSNE():
         # plt.scatter(X, np.ones((X.shape[0])), c = clusters)
         # plt.show()
 
-        return clusters
+        return clusters, k
 
-    def _get_clusters_via_subsampled_spectral(self, X, n_neighbors = 15, n_samples = 1000):
+    def _get_snn_graph(self, samples, n_neighbors):
+        nn_graph = NearestNeighbors(n_neighbors = n_neighbors).fit(samples)
+        A = nn_graph.kneighbors_graph(samples)
+        A = A - np.eye(A.shape[0])
+        A = np.floor((A + A.T) / 2) # if floored, is shared nearest neighbors
+        # take ones where they have no neighbors and add only one neighbor, which can't mess up clusters
+        are_you_lonely = np.array(A.sum(axis = 1) == 0).flatten()
+        # print(are_you_lonely.shape)
+        if np.sum(are_you_lonely) != 0:
+            # print("found lonely points")
+            lonely_individuals = samples[are_you_lonely].reshape(-1, 1)
+            # print(lonely_individuals.shape)
+            lonely_friends = nn_graph.kneighbors_graph(lonely_individuals)
+            # print(type(lonely_friends))
+            # print(lonely_friends.shape)
+            for i, these_friends in enumerate(lonely_friends.A):
+                these_friends = these_friends.reshape(-1)
+                # print(these_friends.shape)
+                places_to_check = np.logical_and(these_friends == 1, ~are_you_lonely)
+                friends = np.where(places_to_check)[0]
+                friend_dists = np.abs(lonely_individuals[i] - samples[friends])
+                best_friend_index = np.argmin(friend_dists)
+                best_friend = friends[best_friend_index]
+                # print(A.shape)
+                A[are_you_lonely, best_friend] = 1
+                A[best_friend, are_you_lonely] = 1
+            # A[are_you_lonely, are_you_lonely] = lonely_friends
+        # then do it again to re symmetrize
+        A = (A + A.T) / 2
+        assert np.sum(A != A.T) == 0, "A is not symmetric"
+        assert np.sum(A.sum(axis = 1) == 0) == 0, "someone is lonely"
+        assert np.sum(A < 0) == 0, "an entry is negative"
+        sums = np.array(A.sum(axis = 1)).reshape(-1)
+        D = np.diag(sums)
+        L = D - A
+        # L = (L + L.T) / 2
+        D_shrunken = np.diag(sums**(-1/2))
+        L = D_shrunken@L@D_shrunken
+
+        return L
+
+    def _get_clusters_via_subsampled_spectral(self, X, n_neighbors = None, n_samples = 2000):
         n_samples = min(n_samples, X.shape[0])
+        if n_neighbors is None:
+            # use number of neighbors based off Erdos graph disconnection criteria of 2logn
+            n_neighbors = 2*np.int(np.log2(n_samples))
         X = np.array(X)
         sample_count = X.shape[0]
         inds = np.random.choice(X.shape[0], n_samples, replace = False)
         samples = X[inds]
-        A = NearestNeighbors(n_neighbors = n_neighbors).fit(samples).kneighbors_graph(samples)
-        A = (A + A.T) / 2
-        A = A - np.eye(A.shape[0])
-        sums = np.array(A.sum(axis = 0)).reshape(-1)
-        D = np.diag(sums)
-        L = D - A
-        # D_shrunken = np.diag(sums**(-1/2))
-        # L = D_shrunken@L@D_shrunken
-        eig_val, eig_vec = eigh(L, eigvals = [0, int(n_samples ** .5)])
+        L = self._get_snn_graph(samples, n_neighbors)
+        eig_val, eig_vec = eigh(L, eigvals = [0, int(X.shape[0] ** .5)])
         eig_val = eig_val
         signals = eig_val < ZERO_CUTOFF
         k = sum(signals)
-        print(k)
+        # print(eig_val[:k])
+        # print(k)
         indicators = np.abs(np.array(eig_vec[:, :k])) # shouldn't have to do this ?
 
-        clusters = KMeans(n_clusters = k).fit_predict(indicators)
+        # print(indicators[:5])
+        clusters = np.argmax(indicators, axis = 1).flatten()
+        # clusters = KMeans(n_clusters = k).fit_predict(indicators)
         
         classifier = KNeighborsClassifier().fit(samples, clusters)
         all_clusters = classifier.predict(X)
+
+        for i in range(k):
+            count = np.sum(all_clusters == i)
+            if count == 0:
+                # print("found an empty cluster")
+                all_clusters[all_clusters > i] -= 1
+                k -= 1
+            # print("cluster %d has %d members"%(i, np.sum(all_clusters == i)))
+
         # all_clusters = self._convert_labels_to_increasing(all_clusters, X)
 
-        return all_clusters
+        return all_clusters, k
 
-    def _convert_labels_to_increasing(self, labels, embedding):
+    # def _get_clusters_via_ranged_spectral(self, X, n_neighbors = None):
+    #     X = np.array(X)
+    #     if n_neighbors is None:
+    #         n_neighbors = 2*np.log(X.shape[0])
+
+    #     L = self._get_snn_graph()
+
+
+    def _convert_labels_to_increasing(self, labels, embedding, k):
         # print(embedding.shape)
         inds = np.argsort(embedding, axis = 0).flatten()
         # print(inds.shape)
@@ -219,12 +308,16 @@ class TreeSNE():
             if label not in label_dict:
                 label_dict[label] = n_added
                 n_added += 1
+                if n_added > k:
+                    break
 
         new_labels = []
         for label in labels:
             new_labels.append(label_dict[label])
 
         new_labels = np.array(new_labels)
+
+        assert np.sum(np.diff(new_labels[inds]) < 0) == 0, "labels are not sorted" 
 
         return new_labels
 
@@ -579,42 +672,39 @@ class TreeSNE():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-=======
     # SHEKHAR
->>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
-    legends = ['Rod BC',
-         'Muller Glia',
-         'BC1A',
-         'BC1B',
-         'BC2',
-         'BC3A',
-         'BC3B',
-         'BC4',
-         'BC5A',
-         'BC5B',
-         'BC5C',
-         'BC5D',
-         'BC6',
-         'BC7',
-         'BC8/9_1',
-         'BC8/9_2',
-         'Amacrine_1',
-         'Amacrine_2',
-         'Rod PR',
-         'Cone PR'
-    ]
-<<<<<<< HEAD
-    X = np.load("shekhar_data.npy")
+    # legends = ['Rod BC',
+    #      'Muller Glia',
+    #      'BC1A',
+    #      'BC1B',
+    #      'BC2',
+    #      'BC3A',
+    #      'BC3B',
+    #      'BC4',
+    #      'BC5A',
+    #      'BC5B',
+    #      'BC5C',
+    #      'BC5D',
+    #      'BC6',
+    #      'BC7',
+    #      'BC8/9_1',
+    #      'BC8/9_2',
+    #      'Amacrine_1',
+    #      'Amacrine_2',
+    #      'Rod PR',
+    #      'Cone PR'
+    # ]
+    # X = np.load("shekhar_data.npy")
     # print(X.shape)
-    labels = np.load("shekhar_labels.npy")
-    # # subset = np.random.choice(X.shape[0], 5000, replace = False)
-    dim_reduction = PCA(100) # 100 is good 
-=======
+    # labels = np.load("shekhar_labels.npy")
+    # subset = np.random.choice(X.shape[0], 2000, replace = False)
+    # X = X[subset]
+    # labels = labels[subset]
+    # dim_reduction = PCA(100) # 100 is good 
     # X = np.load("shekhar_data.npy", allow_pickle = True)
     # colnames = np.load("shekhar_genes_cols.npy", allow_pickle= True)
     # print(X.shape)
-    labels = np.load("shekhar_labels.npy", allow_pickle = True)
+    # labels = np.load("shekhar_labels.npy", allow_pickle = True)
     # markers = ["Pcdh17", "Pcdh10", "Erbb4", "Nnat", "Col11a1", 
     #         "Sox6", "Chrm2", "Slitrk5", "Lrrtm1", "Cck", 
     #         "Lect1", "Igfn1", "Serpini1", "Cpne9", "Vstm2b", 
@@ -624,12 +714,10 @@ if __name__ == "__main__":
     #print(len(set(labels)))
     # subset = np.random.choice(X.shape[0], 5000, replace = False)
     # dim_reduction = PCA(100) # 100 is good 
->>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
     # # dim_reduction = SpectralEmbedding(100)
-    X = dim_reduction.fit_transform(X)
+    # X = dim_reduction.fit_transform(X)
     # # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
-<<<<<<< HEAD
     # X = np.load("shekhar_data.npy")
     # labels = np.load("shekhar_labels.npy")
     # subset = np.random.choice(X.shape[0], 5000, replace = False)
@@ -638,17 +726,15 @@ if __name__ == "__main__":
     # print(dim_reduction.explained_variance_ratio_)
     # print(X.shape)
     # X, channels, labels = load_cytof()
-=======
 
     # CYTOF
     # X, channels, labels = load_cytof()
 
->>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
     # X = data.data
     # data = datasets.fetch_lfw_people()
-    # dim_reduction = PCA(40)
+    # dim_reduction = PCA(100)
     # labels = data.target
     # data = datasets.fetch_olivetti_faces()
     # dim_reduction = PCA(100)
@@ -660,26 +746,25 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-<<<<<<< HEAD
-    # X, labels = load_big_mnist()
+    X, labels = load_big_mnist()
 
-    # X = PCA(100).fit_transform(X)
+    X = PCA(100).fit_transform(X)
 
-    tree = TreeSNE(init_df = 1, df_ratio = .9, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
+    # X = np.random.rand(2000, 100)
+
+    tree = TreeSNE(init_df = 1, df_ratio = .95, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # use .8 for bio thing
     # and .7 for MNIST
     # use .65 for cytof
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings, clusters = tree.fit(X, n_layers = 40, get_clusters = True)
-    np.save("shenkar_embeddings.npy", embeddings)
-=======
+    embeddings, clusters = tree.fit(X, n_layers = 15, get_clusters = True)
+    # np.save("mnist_embeddings.npy", embeddings)
     # tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # # use .8 for bio thing
     # # and .7 for MNIST
     # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
     # embeddings = tree.fit(X, n_layers = 15)
     # np.save("cytof_embeddings.npy", embeddings)
->>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
     # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])
@@ -691,24 +776,20 @@ if __name__ == "__main__":
     # plt.show()
     #np.save("faces_lfw_embed", embeddings)
     #np.save("shekhar_embed", embeddings)
-    embeddings = np.load("shekhar_embed.npy", allow_pickle = True)
-    print(embeddings.shape)
+    # embeddings = np.load("shenkar_embeddings.npy")
+    # print(embeddings.shape)
     # print(labels.shape)
-<<<<<<< HEAD
-    # display_tree(embeddings, X[:, channels.index("cd45ra")])
-    display_tree(embeddings, level_labels = clusters)
-    # display_tree(embeddings, true_labels = labels)
-    display_tree_categorical(embeddings, labels, legend_labels = legends, transparency = .01)
-=======
+    # display_tree(embeddings, X[:, channels.index("cd8")])
+    # display_tree(embeddings, level_labels = clusters)
+    display_tree(embeddings, true_labels = labels)
     # display_tree(embeddings, X[:, list(colnames).index("Pcdh17")])
-    display_tree_categorical(embeddings, labels, legend_labels = legends,
-        distinct=True, transparency=0.01, 
-        not_gray = ["BC6", "BC7"])
+    # display_tree_categorical(embeddings, labels, legend_labels = legends,
+    #     distinct=True, transparency=0.01, 
+    #     # not_gray = ['BC8/9_1', 'BC8/9_2']
+    # )
     # display_tree_categorical(embeddings, labels, distinct=True)
 
 
 
 
 
-
->>>>>>> 111efb1d380cbcb73f74f8d97d112734265108c1
