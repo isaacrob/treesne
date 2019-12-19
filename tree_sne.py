@@ -809,7 +809,7 @@ if __name__ == "__main__":
     # # and .7 for MNIST
     # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
     embeddings = tree.fit(X, n_layers = 30, get_clusters = False)
-    np.save("bigmnist_embed_30layers_autores.npy", embeddings)
+    np.save("bigmnist_embed_30layers_noperp.npy", embeddings)
     # embeddings = np.load("cytof_embeddings.npy")
     # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
     # print(np.sort(embeddings[:, 0], axis = 0)[:10])

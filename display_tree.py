@@ -50,6 +50,7 @@ def getColor(c, N, idx, distinct = False):
 
 
 def display_tree(embeddings, true_labels = None, level_labels = None, transparency = None):
+    dotsize = 10
     if transparency is None:
         if true_labels is None:
             transparency = 0.05
@@ -63,11 +64,11 @@ def display_tree(embeddings, true_labels = None, level_labels = None, transparen
         # embedding = embedding[true_labels == 0]
         # print(embedding.shape)
         if true_labels is not None:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = true_labels)
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = true_labels, s = dotsize)
         elif level_labels is not None:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = level_labels[i])
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = level_labels[i], s = dotsize)
         else:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency)
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, s = dotsize)
     if true_labels is not None:
         color_bar = plt.colorbar()
         color_bar.set_alpha(1)
