@@ -120,7 +120,7 @@ class TreeSNE():
             best_k = 1
             top_df = self.init_df
             curr_df = self.init_df
-            best_df_range = -1
+            best_df_range = 0
             # best_n_dups = 0
             # n_dups = 0
             clusters = []
@@ -159,7 +159,7 @@ class TreeSNE():
         embeddings = np.array(embeddings).reshape(X.shape[0], len(embeddings), -1)
 
         # print(best_clusters)
-        if best_df_range == -1:
+        if best_df_range == 0:
             print("no stable clustering found, try using more levels")
         else:
             print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
@@ -353,8 +353,8 @@ class TreeSNE():
             if label not in label_dict:
                 label_dict[label] = n_added
                 n_added += 1
-                if n_added > k:
-                    break
+                # if n_added > k:
+                #     break
 
         new_labels = []
         for label in labels:
@@ -773,7 +773,7 @@ if __name__ == "__main__":
     # X, channels, labels = load_cytof()
 
     # CYTOF
-    # X, channels, labels = load_cytof()
+    X, channels, labels = load_cytof()
 
     # data = datasets.load_breast_cancer()
     # data = datasets.load_digits()
@@ -791,9 +791,9 @@ if __name__ == "__main__":
     # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
     # plt.show()
 
-    X, labels = load_big_mnist()
+    # X, labels = load_big_mnist()
 
-    X = PCA(100).fit_transform(X)
+    # X = PCA(100).fit_transform(X)
 
     # X = np.random.rand(2000, 100)
 
@@ -802,7 +802,7 @@ if __name__ == "__main__":
     # and .7 for MNIST
     # use .65 for cytof
     # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings, clusters = tree.fit(X, n_layers = 15, get_clusters = True)
+    embeddings, clusters = tree.fit(X, n_layers = 100, get_clusters = True)
     # np.save("mnist_embeddings.npy", embeddings)
     # tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
     # # use .8 for bio thing
@@ -824,8 +824,8 @@ if __name__ == "__main__":
     # embeddings = np.load("shenkar_embeddings.npy")
     # print(embeddings.shape)
     # print(labels.shape)
-    # display_tree(embeddings, X[:, channels.index("cd8")])
-    display_tree(embeddings, level_labels = clusters)
+    # display_tree(embeddings, level_labels = clusters)
+    display_tree(embeddings, X[:, channels.index("cd8")])
     display_tree(embeddings, true_labels = labels)
     # display_tree(embeddings, X[:, list(colnames).index("Pcdh17")])
     # display_tree_categorical(embeddings, labels, legend_labels = legends,
