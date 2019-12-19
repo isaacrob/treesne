@@ -120,7 +120,7 @@ class TreeSNE():
             best_k = 1
             top_df = self.init_df
             curr_df = self.init_df
-            best_df_range = -1
+            best_df_range = 0
             # best_n_dups = 0
             # n_dups = 0
             clusters = []
@@ -352,8 +352,8 @@ class TreeSNE():
             if label not in label_dict:
                 label_dict[label] = n_added
                 n_added += 1
-                if n_added > k:
-                    break
+                # if n_added > k:
+                #     break
 
         new_labels = []
         for label in labels:
@@ -713,5 +713,4 @@ class TreeSNE():
 # or statistically significant difference in embedding?
 # idea is that popping off captures what t-SNE thinks is 
 # the most different from the rest
-
 
