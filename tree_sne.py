@@ -158,13 +158,12 @@ class TreeSNE():
 
         embeddings = np.array(embeddings).reshape(X.shape[0], len(embeddings), -1)
 
-        # print(best_clusters)
-        if best_df_range == 0:
-            print("no stable clustering found, try using more levels")
-        else:
-            print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
-
         if get_clusters:
+            # print(best_clusters)
+            if best_df_range == -1:
+                print("no stable clustering found, try using more levels")
+            else:
+                print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
             return embeddings, clusters
         else:
             return embeddings
@@ -714,125 +713,6 @@ class TreeSNE():
 # or statistically significant difference in embedding?
 # idea is that popping off captures what t-SNE thinks is 
 # the most different from the rest
-
-
-if __name__ == "__main__":
-    # SHEKHAR
-    # legends = ['Rod BC',
-    #      'Muller Glia',
-    #      'BC1A',
-    #      'BC1B',
-    #      'BC2',
-    #      'BC3A',
-    #      'BC3B',
-    #      'BC4',
-    #      'BC5A',
-    #      'BC5B',
-    #      'BC5C',
-    #      'BC5D',
-    #      'BC6',
-    #      'BC7',
-    #      'BC8/9_1',
-    #      'BC8/9_2',
-    #      'Amacrine_1',
-    #      'Amacrine_2',
-    #      'Rod PR',
-    #      'Cone PR'
-    # ]
-    # X = np.load("shekhar_data.npy")
-    # print(X.shape)
-    # labels = np.load("shekhar_labels.npy")
-    # subset = np.random.choice(X.shape[0], 2000, replace = False)
-    # X = X[subset]
-    # labels = labels[subset]
-    # dim_reduction = PCA(100) # 100 is good 
-    # X = np.load("shekhar_data.npy", allow_pickle = True)
-    # colnames = np.load("shekhar_genes_cols.npy", allow_pickle= True)
-    # print(X.shape)
-    # labels = np.load("shekhar_labels.npy", allow_pickle = True)
-    # markers = ["Pcdh17", "Pcdh10", "Erbb4", "Nnat", "Col11a1", 
-    #         "Sox6", "Chrm2", "Slitrk5", "Lrrtm1", "Cck", 
-    #         "Lect1", "Igfn1", "Serpini1", "Cpne9", "Vstm2b", 
-    #         "Casp7"]
-
-    # labels = get_labels_by_max(X, colnames, colnames_subset=markers)
-    #print(len(set(labels)))
-    # subset = np.random.choice(X.shape[0], 5000, replace = False)
-    # dim_reduction = PCA(100) # 100 is good 
-    # # dim_reduction = SpectralEmbedding(100)
-    # X = dim_reduction.fit_transform(X)
-    # # print(dim_reduction.explained_variance_ratio_)
-    # print(X.shape)
-    # X = np.load("shekhar_data.npy")
-    # labels = np.load("shekhar_labels.npy")
-    # subset = np.random.choice(X.shape[0], 5000, replace = False)
-    # dim_reduction = PCA(100)
-    # X = dim_reduction.fit_transform(X)
-    # print(dim_reduction.explained_variance_ratio_)
-    # print(X.shape)
-    # X, channels, labels = load_cytof()
-
-    # CYTOF
-    X, channels, labels = load_cytof()
-
-    # data = datasets.load_breast_cancer()
-    # data = datasets.load_digits()
-    # X = data.data
-    # data = datasets.fetch_lfw_people()
-    # dim_reduction = PCA(100)
-    # labels = data.target
-    # data = datasets.fetch_olivetti_faces()
-    # dim_reduction = PCA(100)
-    # X = dim_reduction.fit_transform(data.data)
-    # print(dim_reduction.explained_variance_ratio_)
-    # labels = data.target
-    # A, gt, coords = sbm(1000, 2, 0, .5, .1)
-    # plt.figure()
-    # plt.scatter(coords[:, 0], coords[:, 1], c = gt)
-    # plt.show()
-
-    # X, labels = load_big_mnist()
-
-    # X = PCA(100).fit_transform(X)
-
-    # X = np.random.rand(2000, 100)
-
-    tree = TreeSNE(init_df = 1, df_ratio = None, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
-    # use .8 for bio thing
-    # and .7 for MNIST
-    # use .65 for cytof
-    # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    embeddings, clusters = tree.fit(X, n_layers = 100, get_clusters = True)
-    # np.save("mnist_embeddings.npy", embeddings)
-    # tree = TreeSNE(init_df = 1, df_ratio = .65, perp = None, map_dims = 1, late_exag_coeff = 10, dynamic_perp = True, init_with_pca = False, max_iter = 1000)
-    # # use .8 for bio thing
-    # # and .7 for MNIST
-    # # clusters = tree._get_tsne_clusters_via_pop_off(data.data, 1)
-    # embeddings = tree.fit(X, n_layers = 15)
-    # np.save("cytof_embeddings.npy", embeddings)
-    # embeddings = np.load("cytof_embeddings.npy")
-    # print(sum(np.isclose(np.sort(embeddings[:, 0], axis = 0), np.sort(embeddings[:, 1], axis = 0))))
-    # print(np.sort(embeddings[:, 0], axis = 0)[:10])
-    # print(np.sort(embeddings[:, 1], axis = 0)[:10])
-    # plt.figure()
-    # plt.scatter(embeddings[:, 0], np.zeros(embeddings.shape[0]), c = data.target)
-    # plt.figure()
-    # plt.scatter(embeddings[:, 1], np.zeros(embeddings.shape[0]), c = data.target)
-    # plt.show()
-    #np.save("faces_lfw_embed", embeddings)
-    #np.save("shekhar_embed", embeddings)
-    # embeddings = np.load("shenkar_embeddings.npy")
-    # print(embeddings.shape)
-    # print(labels.shape)
-    # display_tree(embeddings, level_labels = clusters)
-    display_tree(embeddings, X[:, channels.index("cd8")])
-    display_tree(embeddings, true_labels = labels)
-    # display_tree(embeddings, X[:, list(colnames).index("Pcdh17")])
-    # display_tree_categorical(embeddings, labels, legend_labels = legends,
-    #     distinct=True, transparency=0.01, 
-    #     # not_gray = ['BC8/9_1', 'BC8/9_2']
-    # )
-    # display_tree_categorical(embeddings, labels, distinct=True)
 
 
 

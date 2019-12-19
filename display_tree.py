@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 
 def getColor(c, N, idx, distinct = False):
@@ -49,6 +50,7 @@ def getColor(c, N, idx, distinct = False):
 
 
 def display_tree(embeddings, true_labels = None, level_labels = None, transparency = None):
+    dotsize = 10
     if transparency is None:
         if true_labels is None:
             transparency = 0.05
@@ -62,11 +64,11 @@ def display_tree(embeddings, true_labels = None, level_labels = None, transparen
         # embedding = embedding[true_labels == 0]
         # print(embedding.shape)
         if true_labels is not None:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = true_labels)
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = true_labels, s = dotsize)
         elif level_labels is not None:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = level_labels[i])
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = level_labels[i], s = dotsize)
         else:
-            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency)
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, s = dotsize)
     if true_labels is not None:
         color_bar = plt.colorbar()
         color_bar.set_alpha(1)
@@ -144,6 +146,42 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None, tran
     plt.show()
 
 
+
+def display_tree_mnist(embeddings, true_labels = None, transparency = None, legend_labels = None):
+    dotsize = 10
+    if transparency is None:
+        if true_labels is None:
+            transparency = 0.05
+        else:
+            transparency = 300/float(len(true_labels))
+
+    plt.figure()
+    embeddings = embeddings.reshape(embeddings.shape[1], -1)
+    # print(embeddings.shape)
+    for i, embedding in enumerate(embeddings):
+        # embedding = embedding[true_labels == 0]
+        # print(embedding.shape)
+        if true_labels is not None:
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = true_labels, s = dotsize)
+        else:
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, s = dotsize)
+    if true_labels is not None:
+        if legend_labels is not None:
+            legend_elems = []
+            num_colors = len(legend_labels)
+            for i in range(num_colors):
+                label = legend_labels[i]
+                color = getColor("viridis", num_colors, i)
+                legend_elems.append(Line2D([0],[0], marker = 'o', alpha=1, color = 'w',
+                                            markerfacecolor=color, label = label))
+            legend = plt.legend(handles=legend_elems)
+
+
+        else: 
+            color_bar = plt.colorbar()
+            color_bar.set_alpha(1)
+            color_bar.draw_all()
+    plt.show()
 
 
 
