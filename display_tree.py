@@ -55,7 +55,7 @@ def display_tree(embeddings, true_labels = None, level_labels = None, transparen
         if true_labels is None:
             transparency = 0.05
         else:
-            transparency = 500/float(len(true_labels))
+            transparency = 300/float(len(true_labels))
 
     plt.figure()
     embeddings = embeddings.reshape(embeddings.shape[1], -1)
@@ -94,8 +94,9 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None, tran
                             and not_gray will override legend_labels. 
                             specify both if consistency of colors across multiple plots is needed
     """
+    dotsize = 10
     if transparency is None:
-        transparency = 500/float(len(true_labels))
+        transparency = 300/float(len(true_labels))
 
     x = embeddings.reshape(embeddings.shape[0] * embeddings.shape[1])
     y = np.repeat(np.arange(embeddings.shape[1]), embeddings.shape[0])
@@ -121,7 +122,7 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None, tran
         em = x[large_labels == val]
         y_val = y[large_labels == val]
         plt.plot(em, y_val, alpha = transparency_use, marker='o', linestyle='', label = val,
-                color = c)
+                color = c, s = dotsize)
         col_index += 1
 
     if not_gray is not None:
@@ -129,7 +130,7 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None, tran
             c = not_gray_colors[val]
             em = x[large_labels == val]
             y_val = y[large_labels == val]
-            plt.plot(em, y_val, alpha = transparency, marker='o', linestyle='', color = c)
+            plt.plot(em, y_val, alpha = transparency, marker='o', linestyle='', color = c, s = dotsize)
 
     
     handles, pltlabels = plt.gca().get_legend_handles_labels()
@@ -147,7 +148,7 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None, tran
 
 
 
-def display_tree_mnist(embeddings, true_labels = None, transparency = None, legend_labels = None):
+def display_tree_mnist(embeddings, true_labels = None, transparency = None, legend_labels = None, numeric_labels=True, distinct=False):
     dotsize = 10
     if transparency is None:
         if true_labels is None:
@@ -155,14 +156,23 @@ def display_tree_mnist(embeddings, true_labels = None, transparency = None, lege
         else:
             transparency = 300/float(len(true_labels))
 
+    if distinct or not numeric_labels:
+        colordict = {}
+        num_colors = len(legend_labels)
+        for i in range(num_colors):
+            colordict[legend_labels[i]] = getColor("viridis", num_colors, i, distinct=True)
+
     plt.figure()
     embeddings = embeddings.reshape(embeddings.shape[1], -1)
     # print(embeddings.shape)
     for i, embedding in enumerate(embeddings):
         # embedding = embedding[true_labels == 0]
         # print(embedding.shape)
-        if true_labels is not None:
+        if true_labels is not None and numeric_labels and not distinct:
             plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, c = true_labels, s = dotsize)
+        elif true_labels is not None and (distinct or not numeric_labels):
+            plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, 
+                            c = [colordict[x] for x in true_labels], s = dotsize)
         else:
             plt.scatter(embedding, np.ones(embedding.shape[0]) * i, alpha = transparency, s = dotsize)
     if true_labels is not None:
@@ -171,7 +181,10 @@ def display_tree_mnist(embeddings, true_labels = None, transparency = None, lege
             num_colors = len(legend_labels)
             for i in range(num_colors):
                 label = legend_labels[i]
-                color = getColor("viridis", num_colors, i)
+                if distinct or not numeric_labels:
+                    color = getColor("viridis", num_colors, i)
+                else:
+                    color = getColor("viridis", num_colors, i)
                 legend_elems.append(Line2D([0],[0], marker = 'o', alpha=1, color = 'w',
                                             markerfacecolor=color, label = label))
             legend = plt.legend(handles=legend_elems)
