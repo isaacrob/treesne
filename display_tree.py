@@ -182,7 +182,7 @@ def display_tree_mnist(embeddings, true_labels = None, transparency = None, lege
             for i in range(num_colors):
                 label = legend_labels[i]
                 if distinct or not numeric_labels:
-                    color = getColor("viridis", num_colors, i)
+                    color = getColor("viridis", num_colors, i, distinct=True)
                 else:
                     color = getColor("viridis", num_colors, i)
                 legend_elems.append(Line2D([0],[0], marker = 'o', alpha=1, color = 'w',
