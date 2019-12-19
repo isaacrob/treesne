@@ -49,7 +49,7 @@ class TreeSNE():
         self.curr_df = self.init_df
 
     def _grow_tree_once(self, X, init_embed):
-        # self.curr_df *= self.df_ratio
+        self.curr_df *= self.df_ratio
         if self.dynamic_perp:
             self.curr_perp = self.curr_perp ** self.df_ratio
             # self.curr_perp = 1 + self.curr_perp * self.df_ratio
