@@ -12,6 +12,7 @@ from scipy.linalg import eigh
 from scipy.spatial.distance import pdist
 from scipy.stats import mode, binned_statistic, ttest_ind
 from scipy.sparse.linalg import eigsh
+from collections import Counter
 SEED = 37
 ZERO_CUTOFF = 1e-10
 np.random.seed(SEED)
@@ -22,13 +23,17 @@ from display_tree import *
 
 from load_data import *
 
+# Nystroem
+# randomized nearest neighbors (probably not..)
+# increase zero cutoff
+
 class TreeSNE():
     # grow a tree by initializing (1D) embedding
     # then modifying embedding with smaller and smaller df
     # returns matrix with points and different 1D embedding
     # locations
     # later, return matrix containing cluster level assignments
-    def __init__(self, init_df = 1, df_ratio = None, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = None, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True, max_iter = 5000):
+    def __init__(self, init_df = 1, df_ratio = None, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = None, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True, max_iter = 5000, knn_algo = "vp-tree", theta = .5, dynamic_df = True, conservativeness = 2):
         self.init_df = init_df
         # if df_ratio is None, will be defined automatically later based on number of layers
         self.df_ratio = df_ratio
@@ -39,8 +44,13 @@ class TreeSNE():
         self.perp = perp
         self.late_exag_coeff = late_exag_coeff
         self.max_iter = max_iter
+        assert knn_algo in ['vp-tree', 'annoy'], 'knn algo unsupported, should be one of vp-tree or annoy'
+        self.knn_algo = knn_algo
+        self.theta = theta
+        self.conservativeness = conservativeness
 
         self.dynamic_perp = dynamic_perp
+        self.dynamic_df = dynamic_df
         if dynamic_perp:
             self.curr_perp = self.perp
 
@@ -48,16 +58,21 @@ class TreeSNE():
 
         self.curr_df = self.init_df
 
+        self._subsample_inds = None
+
     def _grow_tree_once(self, X, init_embed):
-        # self.curr_df *= self.df_ratio
+        if self.dynamic_df:
+            self.curr_df *= self.df_ratio
         if self.dynamic_perp:
             self.curr_perp = self.curr_perp ** self.df_ratio
             # self.curr_perp = 1 + self.curr_perp * self.df_ratio
 
+        perp = self.perp if not self.dynamic_perp else self.curr_perp
+
         new_embed = fast_tsne(
             X,
             map_dims = self.map_dims,
-            perplexity = self.perp if not self.dynamic_perp else self.curr_perp,
+            perplexity = perp,
             df = self.curr_df, 
             initialization = init_embed, 
             seed = self.rand_state, # I don't think this is necessary ..
@@ -65,10 +80,14 @@ class TreeSNE():
             stop_early_exag_iter = 0 if self.ignore_later_exag else 250, # 250 is default value in library,
             start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
             late_exag_coeff = self.late_exag_coeff,
-            learning_rate = X.shape[0] / 10,
-            knn_algo = 'vp-tree',
-            search_k = 1,
-            max_iter = self.max_iter
+            learning_rate = X.shape[0] / self.late_exag_coeff,
+            knn_algo = self.knn_algo,
+            search_k = 150 * int(perp),
+            max_iter = self.max_iter,
+            theta = self.theta, 
+            # nbody_algo = "Barnes-Hut",
+            # nterms = 10,
+            # min_num_intervals = 50,
         )
         # print(np.unique(DBSCAN().fit_predict(new_embed)).shape)
         # self._get_tsne_clusters_via_parallel_shrinkage(X, new_embed)
@@ -78,10 +97,10 @@ class TreeSNE():
 
         return new_embed
 
-    def _grow_tree(self, X, n_layers = 64, get_clusters = False):
+    def _grow_tree(self, X, n_layers = 64, get_clusters = False, bottom = .01):
         if self.df_ratio is None:
             # set by default to scale down to df .01 in the number of layers
-            self.df_ratio = 2**(np.log2(.01) / n_layers)
+            self.df_ratio = 2**(np.log2(bottom) / n_layers)
             print("using df_ratio %f to reach df .01 in %d layers"%(self.df_ratio, n_layers))
 
         if self.perp is None:
@@ -98,33 +117,38 @@ class TreeSNE():
             map_dims = self.map_dims, 
             perplexity = self.perp,
             df = self.init_df,
-            initialization = None if not self.init_with_pca else init_embed,
+            # initialization = None if not self.init_with_pca else init_embed,
             seed = self.rand_state,
             # load_affinities = "save",
             start_late_exag_iter = 0 if self.late_exag_coeff != -1 else -1,
             late_exag_coeff = self.late_exag_coeff,
-            learning_rate = X.shape[0] / 10,
-            knn_algo = 'vp-tree',
-            search_k = 1,
-            max_iter = self.max_iter
+            learning_rate = X.shape[0] / self.late_exag_coeff,
+            knn_algo = self.knn_algo,
+            search_k = 150*int(self.perp),
+            max_iter = self.max_iter,
+            theta = self.theta,
+            # nbody_algo = "Barnes-Hut", 
+            # nterms = 10,
+            # min_num_intervals = 50,
         )
 
         embeddings = [new_embed]
         for i in range(n_layers - 1):
-            print("getting embedding %d"%(i + 1))
+            print("getting embedding %d"%(i + 2))
             new_embed = self._grow_tree_once(X, new_embed)
             embeddings.append(new_embed)
 
         if get_clusters:
             old_k = 0
             best_k = 1
+            # best_level = 0
             top_df = self.init_df
             curr_df = self.init_df
             best_df_range = 0
             # best_n_dups = 0
             # n_dups = 0
             clusters = []
-            best_clusters = None
+            best_clusters = np.zeros(X.shape[0])
             for i, new_embed in enumerate(embeddings):
             #     # print(np.unique(DBSCAN(self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
             #     # print(np.unique(OPTICS(max_eps = self._get_dbscan_epsilon(new_embed)).fit_predict(new_embed)).shape)
@@ -144,8 +168,12 @@ class TreeSNE():
                     if df_range > best_df_range and old_k != 1: # only consider valid clustering after first split
                         print("found new best clustering with k=%d"%old_k)
                         best_df_range = df_range
+                        # if best_k != old_k:
+                        #     # need to update the best level
+                        #     best_level = i
                         best_k = old_k
                         best_clusters = clusters[-1]
+                    print(df_range)
                 else:
                     n_dups = 0
                     top_df = curr_df
@@ -164,7 +192,7 @@ class TreeSNE():
                 print("no stable clustering found, try using more levels")
             else:
                 print("best clustering had %d clusters, with df range %f"%(best_k, best_df_range))
-            return embeddings, clusters
+            return embeddings, clusters, best_clusters
         else:
             return embeddings
 
@@ -267,16 +295,22 @@ class TreeSNE():
         n_samples = min(n_samples, X.shape[0])
         if n_neighbors is None:
             # use number of neighbors based off Erdos graph disconnection criteria of 2logn
-            n_neighbors = 2*np.int(np.log2(n_samples))
+            n_neighbors = int(self.conservativeness*np.int(np.log2(n_samples)))
         X = np.array(X)
-        sample_count = X.shape[0]
-        inds = np.random.choice(X.shape[0], n_samples, replace = False)
-        samples = X[inds]
+        # sample_count = X.shape[0]
+        if self._subsample_inds is None:
+            # consider writing a more intelligent subsampling technique here
+            # PHATE uses spectral clustering to find optimal subsampled things
+            self._subsample_inds = np.random.choice(X.shape[0], n_samples, replace = False)
+        samples = X[self._subsample_inds]
         L = self._get_snn_graph(samples, n_neighbors, fix_lonely = False)
         eig_val, eig_vec = eigh(L, eigvals = [0, int(X.shape[0] ** .5)])
-        eig_val = eig_val
+        # eig_val = eig_val
         signals = eig_val < ZERO_CUTOFF
         k = sum(signals)
+
+        # all_clusters = KMeans(n_clusters = k).fit_predict(X)
+
         # print(eig_val[:k + 1])
         # print(k)
         indicators = np.array(eig_vec[:, :k]) # shouldn't have to do abs ?
@@ -285,8 +319,12 @@ class TreeSNE():
         # clusters = np.argmax(indicators, axis = 1).flatten()
         # clusters = KMeans(n_clusters = k).fit_predict(indicators)
         
-        classifier = KNeighborsClassifier().fit(samples, clusters)
-        all_clusters = classifier.predict(X)
+        classifier = KNeighborsClassifier(n_neighbors = n_neighbors).fit(samples, clusters)
+        all_clusters = classifier.predict(X).astype(np.int)
+
+        # note that KNN doesn't always assign all labels
+        # so need to reassign k
+        k = len(np.unique(all_clusters))
 
         # for i in range(k):
         #     count = np.sum(all_clusters == i)

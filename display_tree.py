@@ -122,7 +122,7 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None, tran
         em = x[large_labels == val]
         y_val = y[large_labels == val]
         plt.plot(em, y_val, alpha = transparency_use, marker='o', linestyle='', label = val,
-                color = c, s = dotsize)
+                color = c)#, s = dotsize)
         col_index += 1
 
     if not_gray is not None:
@@ -130,7 +130,7 @@ def display_tree_categorical(embeddings, true_labels, legend_labels = None, tran
             c = not_gray_colors[val]
             em = x[large_labels == val]
             y_val = y[large_labels == val]
-            plt.plot(em, y_val, alpha = transparency, marker='o', linestyle='', color = c, s = dotsize)
+            plt.plot(em, y_val, alpha = transparency, marker='o', linestyle='', color = c)#, s = dotsize)
 
     
     handles, pltlabels = plt.gca().get_legend_handles_labels()

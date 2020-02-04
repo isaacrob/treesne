@@ -2,6 +2,8 @@ import numpy as np
 import codecs
 import json
 import tensorflow as tf
+from sklearn.datasets import make_swiss_roll
+import scipy
 
 def load_json_files(file_path):
 	'''
@@ -24,8 +26,30 @@ def load_json_files(file_path):
 
 	return json_data
 
+def load_coil_20(file_path = "/Users/isaac/Downloads/COIL20.mat"):
+	data = scipy.io.loadmat(file_path)
+	X = data['X']
+	target = data['Y'].reshape(-1)
 
-def load_big_mnist():
+	return X, target
+
+def load_coil_100(file_path = "/Users/isaac/Downloads/COIL100.mat"):
+	data = scipy.io.loadmat(file_path)
+	# print(data)
+	X = data['fea']
+	target = data['gnd'].reshape(-1)
+
+	return X, target
+
+def load_USPS(file_path = "/Users/isaac/Downloads/USPS.mat"):
+	data = scipy.io.loadmat(file_path)
+	# print(data)
+	X = data['fea']
+	target = data['gnd'].reshape(-1)
+
+	return X, target
+
+def load_big_mnist(train = False):
 	"""
 	Loads the large MNIST dataset from keras 
 	and returns the data and labels for the test dataset (10k observations)
@@ -33,7 +57,12 @@ def load_big_mnist():
 	mnist = tf.keras.datasets.mnist
 	(Xt, ttarget), (X, target) = mnist.load_data()
 	Xt, X = Xt / 255.0, X / 255.0
-	X = X.reshape(X.shape[0], -1)
+
+	if train:
+		X = Xt.reshape(Xt.shape[0], -1)
+		target = ttarget
+	else:
+		X = X.reshape(X.shape[0], -1)
 	return X, target
 
 def load_cytof():
