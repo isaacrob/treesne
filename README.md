@@ -60,7 +60,8 @@ An example pipeline loading MNIST from Tensorflow, generating a 30 layer tree-SN
 
 If your data has more clusters, reduce the `conservativeness` parameter to `TreeSNE`. Typical values range from 1 to 2. It should never drop below 1 according to our theory motivation for its implementation, and we've only had to decrease it when trying to find 100 clusters, in which case we set it to 1.3. `n_layers` and `conservativeness` are the only two parameters that we think users may want to adjust, at least for the time being. Once we've refactored we'll write more documentation. Note that `conservativeness` only effects alpha-clustering and does not actually change the tree-SNE embedding itself.
 
-[Imgur](https://i.imgur.com/4YjJGgM.png)
+![MNIST tree-SNE example plot]
+(https://i.imgur.com/4YjJGgM.png)
 
 ## Authors
 
