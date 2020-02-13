@@ -46,6 +46,7 @@ def load_USPS(file_path = "/Users/isaac/Downloads/USPS.mat"):
 	# print(data)
 	X = data['fea']
 	target = data['gnd'].reshape(-1)
+	target = target - 1
 
 	return X, target
 

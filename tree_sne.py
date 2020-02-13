@@ -33,7 +33,7 @@ class TreeSNE():
     # returns matrix with points and different 1D embedding
     # locations
     # later, return matrix containing cluster level assignments
-    def __init__(self, init_df = 1, df_ratio = None, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = None, late_exag_coeff = 4, dynamic_perp = True, init_with_pca = True, max_iter = 5000, knn_algo = "vp-tree", theta = .5, dynamic_df = True, conservativeness = 2):
+    def __init__(self, init_df = 1, df_ratio = None, rand_state = SEED, ignore_later_exag = True, map_dims = 1, perp = None, late_exag_coeff = 12, dynamic_perp = True, init_with_pca = True, max_iter = 5000, knn_algo = "vp-tree", theta = .5, dynamic_df = True, conservativeness = 2):
         self.init_df = init_df
         # if df_ratio is None, will be defined automatically later based on number of layers
         self.df_ratio = df_ratio
@@ -98,7 +98,7 @@ class TreeSNE():
 
         return new_embed
 
-    def _grow_tree(self, X, n_layers = 64, get_clusters = False, bottom = .01):
+    def _grow_tree(self, X, n_layers = 30, get_clusters = False, bottom = .01):
         if self.df_ratio is None:
             # set by default to scale down to df .01 in the number of layers
             self.df_ratio = 2**(np.log2(bottom) / n_layers)
