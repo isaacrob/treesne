@@ -2,6 +2,8 @@
 
 t-SNE and hierarchical clustering are popular methods of exploratory data analysis, particularly in biology. Building on recent advances in speeding up t-SNE and obtaining finer-grained structure, we combine the two to create tree-SNE, a hierarchical clustering and visualization algorithm based on stacked one-dimensional t-SNE embeddings. We also introduce alpha-clustering, which recommends the optimal cluster assignment, without foreknowledge of the number of clusters, based off of the cluster stability across multiple scales. We demonstrate the effectiveness of tree-SNE and alpha-clustering on images of handwritten digits, mass cytometry (CyTOF) data from blood cells, and single-cell RNA-sequencing (scRNA-seq) data from retinal cells. Furthermore, to demonstrate the validity of the visualization, we use alpha-clustering to obtain unsupervised clustering results competitive with the state of the art on several image data sets.
 
+ArXiv preprint: https://arxiv.org/abs/2002.05687
+
 ## Prerequisites
 
 Install Fit-SNE from https://github.com/KlugerLab/FIt-SNE and add the fast_tsne.py to your Python path. Also make sure to have Numpy, Scipy, Sklearn, and Matplotlib installed.
