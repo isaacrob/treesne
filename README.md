@@ -7,9 +7,9 @@ ArXiv preprint: https://arxiv.org/abs/2002.05687
 ## Prerequisites
 
 Install Fit-SNE from https://github.com/KlugerLab/FIt-SNE and add the FIt-SNE directory that you cloned to your PYTHONPATH environmental variable. This lets tree-SNE access the Python file used to interface with FIt-SNE. This can be done one of several ways:
--run `export PYTHONPATH="$PYTHONPATH":/path/to/FIt-SNE` in your terminal before running your Python script using tree-SNE
--add `export PYTHONPATH="$PYTHONPATH":/path/to/FIt-SNE` to your .bash_profile
--add the line `import sys; sys.path.append('/path/to/FIt-SNE/')` to your Python script before calling `import tree_sne`
+- run `export PYTHONPATH="$PYTHONPATH":/path/to/FIt-SNE` in your terminal before running your Python script using tree-SNE
+- add `export PYTHONPATH="$PYTHONPATH":/path/to/FIt-SNE` to your .bash_profile
+- add the line `import sys; sys.path.append('/path/to/FIt-SNE/')` to your Python script before calling `import tree_sne`
 
 Also make sure to have Numpy, Scipy, Sklearn, and Matplotlib installed.
 
